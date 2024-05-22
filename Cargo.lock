@@ -3332,6 +3332,7 @@ dependencies = [
  "async-trait",
  "cid",
  "ethers",
+ "fendermint_actor_cetf",
  "fendermint_actor_chainmetadata",
  "fendermint_actor_eam",
  "fendermint_actors",

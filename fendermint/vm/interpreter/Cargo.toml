@@ -23,6 +23,7 @@ fendermint_rpc = { path = "../../rpc" }
 fendermint_tracing = { path = "../../tracing" }
 fendermint_actors = { path = "../../actors" }
 fendermint_actor_chainmetadata = { path = "../../actors/chainmetadata" }
+fendermint_actor_cetf = { path = "../../actors/cetf" }
 fendermint_actor_eam = { workspace = true }
 fendermint_testing = { path = "../../testing", optional = true }
 ipc_actors_abis = { workspace = true }
