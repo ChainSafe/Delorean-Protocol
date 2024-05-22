@@ -3,10 +3,6 @@ resolver = "2"
 members = [
   # contracts
   "contracts/binding",
-
-  # merkle
-  "ext/merkle-tree-rs",
-
   # ipc
   "ipc/cli",
   "ipc/wallet",
@@ -112,6 +108,7 @@ libsecp256k1 = "0.7"
 literally = "0.1.3"
 log = "0.4"
 lru_time_cache = "0.11"
+merkle-tree-rs = "0.1.0"
 multiaddr = "0.18"
 multihash = { version = "0.18.1", default-features = false, features = [
   "sha2",
@@ -125,7 +122,7 @@ paste = "1"
 pin-project = "1.1.2"
 prometheus = "0.13"
 prometheus_exporter = "0.8"
-prost = { version = "0.12" }
+prost = { version = "0.11" }
 quickcheck = "1"
 quickcheck_async = "0.1"
 quickcheck_macros = "1"
@@ -161,6 +158,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "regis
 tracing-appender = "0.2.3"
 url = { version = "2.4.1", features = ["serde"] }
 zeroize = "1.6"
+ambassador = "0.3.5"
 
 # Workspace deps
 ipc-api = { path = "ipc/api" }
@@ -216,28 +214,22 @@ cid = { version = "0.10.1", default-features = false, features = [
 frc42_dispatch = "6.0.0"
 
 # Using the same tendermint-rs dependency as tower-abci. From both we are interested in v037 modules.
-tower-abci = { version = "0.14" }
+tower-abci = { version = "0.7" }
 tower = { version = "0.4" }
-tendermint = { version = "0.36", features = ["secp256k1"] }
-tendermint-config = "0.36.0"
-tendermint-rpc = { version = "0.36", features = [
+tendermint = { version = "0.31", features = ["secp256k1"] }
+tendermint-config = "0.33.0"
+tendermint-rpc = { version = "0.31", features = [
   "secp256k1",
   "http-client",
   "websocket-client",
 ] }
-tendermint-proto = { version = "0.36" }
+tendermint-proto = { version = "0.31" }
 
 [patch.crates-io]
 # Use stable-only features.
 gcra = { git = "https://github.com/consensus-shipyard/gcra-rs.git", branch = "main" }
-tendermint = { git = "https://github.com/ec2/tendermint-rs.git", branch = "ec2/ipc"}
-tendermint-config = { git = "https://github.com/ec2/tendermint-rs.git", branch = "ec2/ipc"}
-tendermint-rpc = { git = "https://github.com/ec2/tendermint-rs.git", branch = "ec2/ipc"}
-tendermint-proto = { git = "https://github.com/ec2/tendermint-rs.git", branch = "ec2/ipc"}
-# tendermint = { path = "./tendermint-rs/tendermint"}
-# tendermint-config = { path = "./tendermint-rs/config"}
-# tendermint-rpc = { path = "./tendermint-rs/rpc"}
-# tendermint-proto = { path = "./tendermint-rs/proto"}
+# Contains some API changes that the upstream has not merged.
+merkle-tree-rs = { git = "https://github.com/consensus-shipyard/merkle-tree-rs.git", branch = "dev" }
 
 [profile.wasm]
 inherits = "release"

@@ -66,7 +66,7 @@ pub use relayer::DockerRelayer;
 use self::{dropper::DropHandle, network::NetworkName, runner::DockerRunner};
 
 // TODO: Add these to the materializer.
-const COMETBFT_IMAGE: &str = "cometbft/cometbft:v0.38.x";
+const COMETBFT_IMAGE: &str = "cometbft/cometbft:v0.37.x";
 const FENDERMINT_IMAGE: &str = "fendermint:latest";
 
 const STATE_JSON_FILE_NAME: &str = "materializer-state.json";

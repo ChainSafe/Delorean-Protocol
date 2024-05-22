@@ -10,6 +10,9 @@ fendermint_actor_chainmetadata = { path = "chainmetadata", features = [
     "fil-actor",
 ] }
 fendermint_actor_eam = { path = "eam", features = ["fil-actor"] }
+fendermint_actor_cetf = { path = "cetf", features = [
+    "fil-actor",
+] }
 
 [dependencies]
 cid = { workspace = true }
@@ -18,6 +21,7 @@ fvm_ipld_blockstore = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
 fendermint_actor_chainmetadata = { path = "chainmetadata" }
 fendermint_actor_eam = { path = "eam" }
+fendermint_actor_cetf = { path = "cetf" }
 
 [build-dependencies]
 fil_actors_runtime = { workspace = true, features = ["test_utils"] }

@@ -81,34 +81,19 @@ pub trait Application {
         Ok(response::ProcessProposal::Accept)
     }
 
-    async fn extend_vote(&self, request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
-        Ok(response::ExtendVote {
-            vote_extension: Default::default(),
-        })
+    /// Signals the beginning of a new block, prior to any `DeliverTx` calls.
+    async fn begin_block(&self, request: request::BeginBlock) -> AbciResult<response::BeginBlock> {
+        Ok(Default::default())
     }
 
-    async fn verify_vote_extension(
-        &self,
-        request: request::VerifyVoteExtension,
-    ) -> AbciResult<response::VerifyVoteExtension> {
-        if request.vote_extension.is_empty() {
-            Ok(response::VerifyVoteExtension::Accept)
-        } else {
-            Ok(response::VerifyVoteExtension::Reject)
-        }
+    /// Apply a transaction to the application's state.
+    async fn deliver_tx(&self, request: request::DeliverTx) -> AbciResult<response::DeliverTx> {
+        Ok(Default::default())
     }
 
-    async fn finalize_block(
-        &self,
-        request: request::FinalizeBlock,
-    ) -> AbciResult<response::FinalizeBlock> {
-        Ok(response::FinalizeBlock {
-            events: Default::default(),
-            tx_results: Default::default(),
-            validator_updates: Default::default(),
-            consensus_param_updates: Default::default(),
-            app_hash: Default::default(),
-        })
+    /// Signals the end of a block.
+    async fn end_block(&self, request: request::EndBlock) -> AbciResult<response::EndBlock> {
+        Ok(Default::default())
     }
 
     /// Commit the current state at the current height.
@@ -189,15 +174,11 @@ where
                 Request::ProcessProposal(r) => {
                     Response::ProcessProposal(log_error(app.process_proposal(r).await)?)
                 }
-                Request::FinalizeBlock(r) => {
-                    Response::FinalizeBlock(log_error(app.finalize_block(r).await)?)
+                Request::BeginBlock(r) => {
+                    Response::BeginBlock(log_error(app.begin_block(r).await)?)
                 }
-                Request::ExtendVote(r) => {
-                    Response::ExtendVote(log_error(app.extend_vote(r).await)?)
-                }
-                Request::VerifyVoteExtension(r) => {
-                    Response::VerifyVoteExtension(log_error(app.verify_vote_extension(r).await)?)
-                }
+                Request::DeliverTx(r) => Response::DeliverTx(log_error(app.deliver_tx(r).await)?),
+                Request::EndBlock(r) => Response::EndBlock(log_error(app.end_block(r).await)?),
                 Request::Commit => Response::Commit(log_error(app.commit().await)?),
                 Request::ListSnapshots => {
                     Response::ListSnapshots(log_error(app.list_snapshots().await)?)

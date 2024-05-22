@@ -241,9 +241,6 @@ fn into_tendermint(genesis_file: &PathBuf, args: &GenesisIntoTendermintArgs) -> 
                 pub_key_types: vec![tendermint::public_key::Algorithm::Secp256k1],
             },
             version: Some(tendermint::consensus::params::VersionParams { app: 0 }),
-            abci: tendermint::consensus::params::AbciParams {
-                vote_extensions_enable_height: Some(Default::default()),
-            },
         },
         // Validators will be returnd from `init_chain`.
         validators: Vec::new(),

@@ -12,6 +12,7 @@ mod query;
 pub mod state;
 pub mod store;
 pub mod upgrades;
+mod cetfkernel;
 
 #[cfg(any(test, feature = "bundle"))]
 pub mod bundle;

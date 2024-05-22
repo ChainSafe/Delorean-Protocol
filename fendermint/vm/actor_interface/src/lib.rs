@@ -48,6 +48,7 @@ pub mod chainmetadata;
 pub mod cron;
 pub mod diamond;
 pub mod eam;
+pub mod cetf;
 pub mod ethaccount;
 pub mod evm;
 pub mod init;

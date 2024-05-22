@@ -13,12 +13,12 @@ LINES=4
 
 # Ignore auto-generated code.
 IGNORE=(
-	"contracts/binding" "ext/merkle-tree-rs"
+	"contracts/binding"
 );
 
 ignore() {
 	file=$1
-	for path in "${IGNORE[@]}"; do
+	for path in $IGNORE; do
 		if echo "$file" | grep -q "$path"; then
 			return 0
 		fi

@@ -3,7 +3,7 @@
 
 default:
 	cd contracts && make gen
-	cargo build --release
+	OPENSSL_DIR=$(brew --prefix openssl) cargo build --release
 	./target/release/ipc-cli --version
 	./target/release/fendermint --version
 

@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use fendermint_vm_message::chain::ChainMessage;
-use tendermint::abci::types::ExecTxResult;
+use tendermint::abci::response::DeliverTx;
 use tendermint::block::Height;
 use tendermint_rpc::{endpoint::abci_query::AbciQuery, Client, HttpClient, Scheme, Url};
 use tendermint_rpc::{WebSocketClient, WebSocketClientDriver, WebSocketClientUrl};
@@ -183,7 +183,7 @@ where
 {
     async fn perform<F, T>(&self, msg: ChainMessage, _f: F) -> anyhow::Result<AsyncResponse<T>>
     where
-        F: FnOnce(&ExecTxResult) -> anyhow::Result<T> + Sync + Send,
+        F: FnOnce(&DeliverTx) -> anyhow::Result<T> + Sync + Send,
     {
         let data = SignedMessageFactory::serialize(&msg)?;
         let response = self
@@ -210,7 +210,7 @@ where
         _f: F,
     ) -> anyhow::Result<crate::tx::SyncResponse<T>>
     where
-        F: FnOnce(&ExecTxResult) -> anyhow::Result<T> + Sync + Send,
+        F: FnOnce(&DeliverTx) -> anyhow::Result<T> + Sync + Send,
     {
         let data = SignedMessageFactory::serialize(&msg)?;
         let response = self
@@ -237,7 +237,7 @@ where
         f: F,
     ) -> anyhow::Result<crate::tx::CommitResponse<T>>
     where
-        F: FnOnce(&ExecTxResult) -> anyhow::Result<T> + Sync + Send,
+        F: FnOnce(&DeliverTx) -> anyhow::Result<T> + Sync + Send,
     {
         let data = SignedMessageFactory::serialize(&msg)?;
         let response = self
@@ -246,11 +246,11 @@ where
             .await
             .context("broadcast_tx_commit failed")?;
         // We have a fully `DeliverTx` with default fields even if `CheckTx` indicates failure.
-        let return_data = if response.check_tx.code.is_err() || response.tx_result.code.is_err() {
+        let return_data = if response.check_tx.code.is_err() || response.deliver_tx.code.is_err() {
             None
         } else {
             let return_data =
-                f(&response.tx_result).context("error decoding data from deliver_tx in commit")?;
+                f(&response.deliver_tx).context("error decoding data from deliver_tx in commit")?;
             Some(return_data)
         };
         let response = CommitResponse {

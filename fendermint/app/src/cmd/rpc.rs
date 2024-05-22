@@ -24,7 +24,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::MethodNum;
 use serde::Serialize;
 use serde_json::json;
-use tendermint::abci::types::ExecTxResult;
+use tendermint::abci::response::DeliverTx;
 use tendermint::block::Height;
 use tendermint_rpc::HttpClient;
 
@@ -350,7 +350,7 @@ impl BoundClient for TransClient {
 impl TxClient<BroadcastModeWrapper> for TransClient {
     async fn perform<F, T>(&self, msg: ChainMessage, f: F) -> anyhow::Result<BroadcastResponse<T>>
     where
-        F: FnOnce(&ExecTxResult) -> anyhow::Result<T> + Sync + Send,
+        F: FnOnce(&DeliverTx) -> anyhow::Result<T> + Sync + Send,
         T: Sync + Send,
     {
         match self.broadcast_mode.0 {
