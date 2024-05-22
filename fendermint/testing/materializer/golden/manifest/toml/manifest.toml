@@ -1,0 +1,350 @@
+[accounts.-ehA]
+
+[accounts.eqqqti]
+
+[accounts.fHA_ON]
+
+[accounts.f_ZX]
+
+[accounts.iPd]
+
+[rootnet]
+type = "New"
+
+[rootnet.validators]
+fHA_ON = "1"
+f_ZX = "6046835366980227743"
+iPd = "9209383518813002826"
+
+[rootnet.balances]
+-ehA = "100000000000000000000"
+eqqqti = "100000000000000000000"
+fHA_ON = "100000000000000000000"
+f_ZX = "100000000000000000000"
+iPd = "100000000000000000000"
+
+[rootnet.nodes.2Xzri8W]
+ethapi = true
+seed_nodes = []
+
+[rootnet.nodes.2Xzri8W.mode]
+type = "Validator"
+validator = "fHA_ON"
+
+[rootnet.nodes.9fcF]
+ethapi = false
+seed_nodes = ["2Xzri8W"]
+
+[rootnet.nodes.9fcF.mode]
+type = "Validator"
+validator = "f_ZX"
+
+[rootnet.nodes.ytPNQ]
+ethapi = false
+seed_nodes = ["2Xzri8W"]
+
+[rootnet.nodes.ytPNQ.mode]
+type = "Validator"
+validator = "iPd"
+
+[rootnet.env]
+CMT___rDM = "⁕᧗TmW"
+FM__jNsMLX = ""
+
+[subnets.OIAAB]
+creator = "iPd"
+
+[subnets.OIAAB.validators]
+fHA_ON = "1"
+iPd = "4676106809805163365"
+
+[subnets.OIAAB.balances]
+eqqqti = "6278883500910718379"
+
+[subnets.OIAAB.nodes.Wjm]
+ethapi = true
+seed_nodes = ["_Tz3"]
+parent_node = "ytPNQ"
+
+[subnets.OIAAB.nodes.Wjm.mode]
+type = "Validator"
+validator = "iPd"
+
+[subnets.OIAAB.nodes._Tz3]
+ethapi = true
+seed_nodes = []
+parent_node = "2Xzri8W"
+
+[subnets.OIAAB.nodes._Tz3.mode]
+type = "Validator"
+validator = "fHA_ON"
+
+[subnets.OIAAB.relayers.AQ5VNelq]
+submitter = "f_ZX"
+follow_node = "Wjm"
+submit_node = "2Xzri8W"
+
+[subnets.OIAAB.relayers.JH_Lv89k]
+submitter = "eqqqti"
+follow_node = "Wjm"
+submit_node = "9fcF"
+
+[subnets.OIAAB.relayers.mVEGKQww]
+submitter = "eqqqti"
+follow_node = "Wjm"
+submit_node = "9fcF"
+
+[subnets.OIAAB.bottom_up_checkpoint]
+period = 20416
+
+[subnets.OIAAB.env]
+CMT__FAwV = " ( V㯄\u007F5P~"
+CMT__yckLqO_ = "]"
+FM__-PBDnk = "d⁇;"
+
+[subnets.OIAAB.subnets.a_B2ET]
+creator = "eqqqti"
+
+[subnets.OIAAB.subnets.a_B2ET.validators]
+eqqqti = "4783142365052360646"
+fHA_ON = "1867169665136070113"
+f_ZX = "6927759254411342548"
+iPd = "6700029521346481243"
+
+[subnets.OIAAB.subnets.a_B2ET.balances]
+fHA_ON = "3665971483067389340"
+iPd = "3908771491087171112"
+
+[subnets.OIAAB.subnets.a_B2ET.nodes.KNhPCouO]
+ethapi = false
+seed_nodes = []
+parent_node = "_Tz3"
+
+[subnets.OIAAB.subnets.a_B2ET.nodes.KNhPCouO.mode]
+type = "Validator"
+validator = "eqqqti"
+
+[subnets.OIAAB.subnets.a_B2ET.nodes.MlW]
+ethapi = true
+seed_nodes = ["KNhPCouO"]
+parent_node = "Wjm"
+
+[subnets.OIAAB.subnets.a_B2ET.nodes.MlW.mode]
+type = "Validator"
+validator = "f_ZX"
+
+[subnets.OIAAB.subnets.a_B2ET.nodes.Nkm]
+ethapi = true
+seed_nodes = ["KNhPCouO", "MlW"]
+parent_node = "Wjm"
+
+[subnets.OIAAB.subnets.a_B2ET.nodes.Nkm.mode]
+type = "Full"
+
+[subnets.OIAAB.subnets.a_B2ET.nodes.faJwRIB]
+ethapi = true
+seed_nodes = ["KNhPCouO"]
+parent_node = "Wjm"
+
+[subnets.OIAAB.subnets.a_B2ET.nodes.faJwRIB.mode]
+type = "Validator"
+validator = "fHA_ON"
+
+[subnets.OIAAB.subnets.a_B2ET.relayers.EEhBJk]
+submitter = "eqqqti"
+follow_node = "KNhPCouO"
+submit_node = "_Tz3"
+
+[subnets.OIAAB.subnets.a_B2ET.relayers.JXoBTnAJ]
+submitter = "eqqqti"
+follow_node = "MlW"
+submit_node = "_Tz3"
+
+[subnets.OIAAB.subnets.a_B2ET.bottom_up_checkpoint]
+period = 69588
+
+[subnets.OIAAB.subnets.a_B2ET.env]
+FM__U4Ln = "?5-b6X"
+
+[subnets.OIAAB.subnets.hsS8]
+creator = "eqqqti"
+
+[subnets.OIAAB.subnets.hsS8.validators]
+-ehA = "4177615969204677409"
+iPd = "3023520693388139466"
+
+[subnets.OIAAB.subnets.hsS8.balances]
+fHA_ON = "3999049419089336580"
+f_ZX = "16787427968912834"
+
+[subnets.OIAAB.subnets.hsS8.nodes.BP9kN-7H]
+ethapi = false
+seed_nodes = []
+parent_node = "_Tz3"
+
+[subnets.OIAAB.subnets.hsS8.nodes.BP9kN-7H.mode]
+type = "Validator"
+validator = "-ehA"
+
+[subnets.OIAAB.subnets.hsS8.nodes.RgO4P]
+ethapi = true
+seed_nodes = ["BP9kN-7H"]
+parent_node = "_Tz3"
+
+[subnets.OIAAB.subnets.hsS8.nodes.RgO4P.mode]
+type = "Validator"
+validator = "iPd"
+
+[subnets.OIAAB.subnets.hsS8.relayers.6H8]
+submitter = "eqqqti"
+follow_node = "RgO4P"
+submit_node = "_Tz3"
+
+[subnets.OIAAB.subnets.hsS8.relayers.iM3nURY7]
+submitter = "eqqqti"
+follow_node = "BP9kN-7H"
+submit_node = "Wjm"
+
+[subnets.OIAAB.subnets.hsS8.relayers.pAzBpx0A]
+submitter = "eqqqti"
+follow_node = "RgO4P"
+submit_node = "Wjm"
+
+[subnets.OIAAB.subnets.hsS8.bottom_up_checkpoint]
+period = 52876
+
+[subnets.OIAAB.subnets.hsS8.env]
+FM__ALjA = "\u001D⁒F\t"
+FM__OQlQrBC_ = "񘒆\""
+FM___gj9W = "　둘"
+FM__l1xT = "纗\u0000"
+
+[subnets.Xix27]
+creator = "-ehA"
+
+[subnets.Xix27.validators]
+eqqqti = "2273965564539515671"
+
+[subnets.Xix27.balances]
+-ehA = "4462424318869078388"
+eqqqti = "1"
+
+[subnets.Xix27.nodes.EMVA1wX8]
+ethapi = false
+seed_nodes = []
+parent_node = "ytPNQ"
+
+[subnets.Xix27.nodes.EMVA1wX8.mode]
+type = "Validator"
+validator = "eqqqti"
+
+[subnets.Xix27.relayers.AaY]
+submitter = "f_ZX"
+follow_node = "EMVA1wX8"
+submit_node = "ytPNQ"
+
+[subnets.Xix27.bottom_up_checkpoint]
+period = 86
+
+[subnets.Xix27.env]
+FM__-vAVSaCB = ""
+FM__GANBlUA = "> \u00068"
+FM__J9S70J = "W<;[>N7"
+
+[subnets.Xix27.subnets.BSuqr]
+creator = "eqqqti"
+
+[subnets.Xix27.subnets.BSuqr.validators]
+eqqqti = "3966640668041645659"
+iPd = "7955897069057031398"
+
+[subnets.Xix27.subnets.BSuqr.balances]
+-ehA = "3580135969056598395"
+eqqqti = "2848608469072110344"
+fHA_ON = "3197931706738709560"
+iPd = "3455357208511056337"
+
+[subnets.Xix27.subnets.BSuqr.nodes.2RrAM_M]
+ethapi = true
+seed_nodes = ["dIEn0B"]
+parent_node = "EMVA1wX8"
+
+[subnets.Xix27.subnets.BSuqr.nodes.2RrAM_M.mode]
+type = "Validator"
+validator = "iPd"
+
+[subnets.Xix27.subnets.BSuqr.nodes.dIEn0B]
+ethapi = true
+seed_nodes = []
+parent_node = "EMVA1wX8"
+
+[subnets.Xix27.subnets.BSuqr.nodes.dIEn0B.mode]
+type = "Validator"
+validator = "eqqqti"
+
+[subnets.Xix27.subnets.BSuqr.relayers.E4RnO]
+submitter = "-ehA"
+follow_node = "dIEn0B"
+submit_node = "EMVA1wX8"
+
+[subnets.Xix27.subnets.BSuqr.relayers.HOj]
+submitter = "eqqqti"
+follow_node = "2RrAM_M"
+submit_node = "EMVA1wX8"
+
+[subnets.Xix27.subnets.BSuqr.bottom_up_checkpoint]
+period = 10175
+
+[subnets.Xix27.subnets.BSuqr.env]
+FM__-d0B = ""
+FM__BMijgql = "@+_毼<"
+FM__B_h = "y\u0019¥§"
+FM__gDpB = "񆡐"
+
+[subnets.Xix27.subnets.V09gr]
+creator = "-ehA"
+
+[subnets.Xix27.subnets.V09gr.validators]
+-ehA = "1201438629685537523"
+f_ZX = "5847338233826462781"
+
+[subnets.Xix27.subnets.V09gr.balances]
+eqqqti = "8364947985555720798"
+fHA_ON = "1"
+f_ZX = "5278587617192961211"
+iPd = "6976379959117607671"
+
+[subnets.Xix27.subnets.V09gr.nodes.AJQ-j]
+ethapi = true
+seed_nodes = []
+parent_node = "EMVA1wX8"
+
+[subnets.Xix27.subnets.V09gr.nodes.AJQ-j.mode]
+type = "Validator"
+validator = "-ehA"
+
+[subnets.Xix27.subnets.V09gr.nodes.k0n]
+ethapi = true
+seed_nodes = ["AJQ-j"]
+parent_node = "EMVA1wX8"
+
+[subnets.Xix27.subnets.V09gr.nodes.k0n.mode]
+type = "Validator"
+validator = "f_ZX"
+
+[subnets.Xix27.subnets.V09gr.relayers.m6Pelb3]
+submitter = "-ehA"
+follow_node = "AJQ-j"
+submit_node = "EMVA1wX8"
+
+[subnets.Xix27.subnets.V09gr.relayers.qpPslo]
+submitter = "-ehA"
+follow_node = "AJQ-j"
+submit_node = "EMVA1wX8"
+
+[subnets.Xix27.subnets.V09gr.bottom_up_checkpoint]
+period = 7187
+
+[subnets.Xix27.subnets.V09gr.env]
+CMT__sU_9fp = "\f )\" 񴤘+"
+FM__vpsIh_t = "`"

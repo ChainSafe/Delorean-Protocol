@@ -1,0 +1,66 @@
+{
+    "decisions": {
+        "1095367|@microsoft/api-extractor>@microsoft/api-extractor-model>@rushstack/node-core-library>semver": {
+            "decision": "ignore",
+            "madeAt": 1706192505420
+        },
+        "1095367|@microsoft/api-extractor-model>@rushstack/node-core-library>semver": {
+            "decision": "ignore",
+            "madeAt": 1706192505420
+        },
+        "1094516|browserify-sign": {
+            "decision": "ignore",
+            "madeAt": 1706192511323
+        },
+        "1094889|hardhat-deploy>axios": {
+            "decision": "ignore",
+            "madeAt": 1706192513861
+        },
+        "1095528|json5": {
+            "decision": "ignore",
+            "madeAt": 1706192517148
+        },
+        "1095513|mocha>minimatch": {
+            "decision": "ignore",
+            "madeAt": 1706192519693
+        },
+        "1089011|mocha>minimatch>nanoid": {
+            "decision": "ignore",
+            "madeAt": 1706192521910
+        },
+        "1094471|webpack": {
+            "decision": "ignore",
+            "madeAt": 1706192525741
+        },
+        "1096437|json5": {
+            "decision": "ignore",
+            "madeAt": 1707760560016
+        },
+        "1096482|@microsoft/api-extractor>@microsoft/api-extractor-model>@rushstack/node-core-library>semver": {
+            "decision": "ignore",
+            "madeAt": 1708002967617
+        },
+        "1096482|@microsoft/api-extractor-model>@rushstack/node-core-library>semver": {
+            "decision": "ignore",
+            "madeAt": 1708002967617
+        },
+        "1096485|mocha>minimatch": {
+            "decision": "ignore",
+            "madeAt": 1708002979356
+        },
+        "1096525|hardhat-deploy>axios": {
+            "decision": "ignore",
+            "madeAt": 1708963069648
+        },
+        "1096544|json5": {
+            "decision": "ignore",
+            "madeAt": 1708963077846
+        },
+        "1096644|browserify-sign": {
+            "decision": "ignore",
+            "madeAt": 1710415772020
+        }
+    },
+    "rules": {},
+    "version": 1
+}

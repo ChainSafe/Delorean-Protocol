@@ -1,0 +1,7 @@
+@axelar-network/interchain-token-service/=lib/interchain-token-service/contracts/
+@axelar-network/axelar-gmp-sdk-solidity/=lib/axelar-gmp-sdk-solidity/
+ds-test/=lib/forge-std/lib/ds-test/src/
+forge-std/=lib/forge-std/src/
+openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/
+fevmate/=../../contracts/lib/fevmate/contracts/
+@ipc/=../../contracts/

@@ -1,0 +1,83 @@
+name: IPC CI
+
+# This workflow is triggered from the main CI workflow.
+on:
+  workflow_call:
+
+jobs:
+  # Check code formatting; anything that doesn't require compilation.
+  pre-compile-checks:
+    name: Pre-compile checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt
+
+      - name: Check code formatting
+        run: cd ipc && make check-fmt
+
+      # - name: Check diagrams
+      #   run: make check-diagrams
+
+  # Test matrix, running tasks from the Makefile.
+  tests:
+    if: ${{ !github.event.pull_request.draft }}
+    needs: [pre-compile-checks]
+    name: ${{ matrix.make.name }} (${{ matrix.os }}, ${{ matrix.rust }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        rust: [stable]
+        make:
+          - name: Clippy
+            task: check-clippy
+          - name: Test
+            task: test
+
+    env:
+      RUST_BACKTRACE: full
+      RUSTFLAGS: -Dwarnings
+      CARGO_INCREMENTAL: '0'
+      SCCACHE_CACHE_SIZE: 10G
+      CC: "sccache clang"
+      CXX: "sccache clang++"
+
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@v3
+
+      - name: Install Tools
+        uses: ./.github/actions/install-tools
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          rust: ${{ matrix.rust }}
+
+      - name: Setup Cache
+        uses: ./.github/actions/setup-cache
+        timeout-minutes: 5
+        continue-on-error: true
+        with:
+          # Caching everything separately, in case they don't ask for the same things to be compiled.
+          cache-prefix: ipc-${{ matrix.make.name }}-${{ matrix.os }}-${{ matrix.rust }}-${{ hashFiles('rust-toolchain', 'rust-toolchain.toml') }}
+          cache-suffix: ${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache Solidity ABI artifacts
+        uses: actions/cache@v2
+        with:
+          path: ./contracts/out
+          key: contracts-abi-${{ hashFiles('./contracts/src/**/*.sol') }}
+
+      - name: Generate Solidity ABI artifacts
+        run: >-
+          [ -d contracts/out ] || (cd contracts && make compile-abi)
+
+      - name: ${{ matrix.make.name }}
+        run: cd ipc && make ${{ matrix.make.task }}

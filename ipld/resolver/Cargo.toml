@@ -1,0 +1,50 @@
+[package]
+name = "ipc_ipld_resolver"
+version = "0.1.0"
+description = "P2P library to resolve IPLD content across IPC subnets."
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+base64 = { workspace = true }
+blake2b_simd = { workspace = true }
+bloom = { workspace = true }
+gcra = { workspace = true }
+lazy_static = { workspace = true }
+libipld = { workspace = true }
+libp2p = { workspace = true }
+libp2p-bitswap = { workspace = true }
+libp2p-mplex = { workspace = true }
+libsecp256k1 = { workspace = true }
+lru_time_cache = { workspace = true }
+log = { workspace = true }
+prometheus = { workspace = true }
+quickcheck = { workspace = true, optional = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+fvm_ipld_encoding = { workspace = true }
+fvm_shared = { workspace = true }
+fvm_ipld_blockstore = { workspace = true, optional = true }
+
+ipc-api = { path = "../../ipc/api", default-features = false }
+
+[dev-dependencies]
+cid = { workspace = true }
+env_logger = { workspace = true }
+fvm_ipld_hamt = { workspace = true }
+multihash = { workspace = true }
+quickcheck_macros = { workspace = true }
+
+ipc_ipld_resolver = { path = ".", features = ["arb"] }
+
+[features]
+default = ["arb", "missing_blocks"]
+arb = ["quickcheck", "fvm_shared/arb"]
+missing_blocks = ["fvm_ipld_blockstore"]

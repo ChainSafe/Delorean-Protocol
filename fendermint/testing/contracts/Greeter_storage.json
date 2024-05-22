@@ -1,0 +1,1 @@
+{"storage":[{"astId":3,"contract":"contracts/Greeter.sol:Greeter","label":"greeting","offset":0,"slot":"0","type":"t_string_storage"}],"types":{"t_string_storage":{"encoding":"bytes","label":"string","numberOfBytes":"32"}}}

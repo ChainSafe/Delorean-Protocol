@@ -1,0 +1,25 @@
+[package]
+name = "fendermint_actors"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+fendermint_actor_chainmetadata = { path = "chainmetadata", features = [
+    "fil-actor",
+] }
+fendermint_actor_eam = { path = "eam", features = ["fil-actor"] }
+
+[dependencies]
+cid = { workspace = true }
+anyhow = { workspace = true }
+fvm_ipld_blockstore = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+fendermint_actor_chainmetadata = { path = "chainmetadata" }
+fendermint_actor_eam = { path = "eam" }
+
+[build-dependencies]
+fil_actors_runtime = { workspace = true, features = ["test_utils"] }
+fil_actor_bundler = "6.1.0"
+num-traits = { workspace = true }

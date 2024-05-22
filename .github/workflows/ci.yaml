@@ -1,0 +1,153 @@
+name: Mono CI
+
+on:
+  push:
+    branches:
+      - main
+    # Pattern matched against refs/tags
+    tags:
+      # Push events to every git tag not containing /
+      # NOTE: '**' would match tags with / in them, e.g. "foo/bar",
+      # but we want to use the tag as a docker tag as well, so it's best avoided.
+      - '*'
+
+  pull_request:
+    branches:
+      - '**'
+    # To add ready_for_review as a trigger we need to list all the defaults.
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+
+jobs:
+  # JOB to run change detection
+  changes:
+    runs-on: ubuntu-latest
+    # Required permissions
+    permissions:
+      pull-requests: read
+    # Set job outputs to values from filter step
+    outputs:
+      workspace:     ${{ steps.filter.outputs.workspace }}
+      contracts:     ${{ steps.filter.outputs.contracts }}
+      ipc:           ${{ steps.filter.outputs.ipc }}
+      ipld-resolver: ${{ steps.filter.outputs.ipld-resolver }}
+      fendermint:    ${{ steps.filter.outputs.fendermint }}
+    steps:
+      # For pull requests it's not necessary to checkout the code,
+      # but the workflow is also triggered on pushes to `main`.
+      - uses: actions/checkout@v3
+
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            workspace:
+              - 'Cargo.toml'
+            contracts:
+              - 'contracts/**'
+            ipc:
+              - 'ipc/**'
+            ipld-resolver:
+              - 'ipld/resolver/**'
+            fendermint:
+              - 'fendermint/**'
+
+  license:
+    uses: ./.github/workflows/license.yaml
+
+  contracts-prettier:
+    uses: ./.github/workflows/contracts-prettier.yaml
+    needs: [changes]
+    if: >-
+      needs.changes.outputs.contracts == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref_type == 'tag'
+
+  contracts-deployment-test:
+    uses: ./.github/workflows/contracts-deployment-test.yaml
+    needs: [ contracts-prettier ]
+
+  contracts-test:
+    uses: ./.github/workflows/contracts-test.yaml
+    needs: [contracts-prettier]
+
+  contracts-storage:
+    uses: ./.github/workflows/contracts-storage.yaml
+    needs: [contracts-prettier]
+
+  contracts-npm-audit:
+    uses: ./.github/workflows/contracts-npm-audit.yaml
+    needs: [contracts-prettier]
+
+  contracts-sast:
+    uses: ./.github/workflows/contracts-sast.yaml
+    needs: [contracts-prettier]
+
+  extras:
+    uses: ./.github/workflows/extras.yaml
+    needs: [contracts-prettier]
+
+  ipc:
+    uses: ./.github/workflows/ipc.yaml
+    needs: [changes, license]
+    if: >-
+      needs.changes.outputs.workspace == 'true' ||
+      needs.changes.outputs.contracts == 'true' ||
+      needs.changes.outputs.ipc == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref_type == 'tag'
+
+  ipld-resolver:
+    uses: ./.github/workflows/ipld-resolver.yaml
+    needs: [changes, license]
+    if: >-
+      needs.changes.outputs.workspace == 'true' ||
+      needs.changes.outputs.ipld-resolver == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref_type == 'tag'
+
+  fendermint-test:
+    uses: ./.github/workflows/fendermint-test.yaml
+    secrets: inherit
+    needs: [changes, license]
+    if: >-
+      needs.changes.outputs.workspace == 'true' ||
+      needs.changes.outputs.contracts == 'true' ||
+      needs.changes.outputs.ipc == 'true' ||
+      needs.changes.outputs.ipld-resolver == 'true' ||
+      needs.changes.outputs.fendermint == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref_type == 'tag'
+
+  fevm-contract-tests:
+    uses: ./.github/workflows/fevm-contract-tests.yaml
+    secrets: inherit
+    needs: [changes, license]
+    if: >-
+      needs.changes.outputs.workspace == 'true' ||
+      needs.changes.outputs.contracts == 'true' ||
+      needs.changes.outputs.ipc == 'true' ||
+      needs.changes.outputs.ipld-resolver == 'true' ||
+      needs.changes.outputs.fendermint == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref_type == 'tag'
+
+  fendermint-publish:
+    uses: ./.github/workflows/fendermint-publish.yaml
+    secrets: inherit
+    # Dependencies are not strictly necessary, but if fendermint tests pass they publish docker too, so they better work.
+    # It is because of these needs that all the filters are allowed to run on `main` too, otherwise this would be disabled.
+    # It could be done in a more granular approach inside the workflows to allow the job to pass but opt-out of testing,
+    # but I guess it doesn't hurt to run a final round of unconditional tests, even though it takes longer to publish.
+    if: >-
+      github.ref == 'refs/heads/main' ||
+      github.ref_type == 'tag'
+    needs:
+      - contracts-test # generates the ABI artifacts (although fendermint can do on its own too)
+      - ipc
+      - ipld-resolver
+      - fendermint-test

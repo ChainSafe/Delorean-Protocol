@@ -1,0 +1,55 @@
+[package]
+name = "fendermint_eth_api"
+description = "Ethereum JSON-RPC facade"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true }
+ethers-core = { workspace = true }
+ethers-contract = { workspace = true }
+erased-serde = { workspace = true }
+futures = { workspace = true }
+hex = { workspace = true }
+jsonrpc-v2 = { workspace = true }
+lazy_static = { workspace = true }
+lru_time_cache = { workspace = true }
+paste = { workspace = true }
+serde = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tendermint = { workspace = true }
+tendermint-rpc = { workspace = true }
+tokio = { workspace = true }
+
+cid = { workspace = true }
+fil_actors_evm_shared = { workspace = true }
+fvm_shared = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+
+fendermint_crypto = { path = "../../crypto" }
+fendermint_rpc = { path = "../../rpc" }
+fendermint_vm_actor_interface = { path = "../../vm/actor_interface" }
+fendermint_vm_message = { path = "../../vm/message" }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+clap = { workspace = true }
+ethers = { workspace = true, features = ["abigen"] }
+hex = { workspace = true }
+lazy_static = { workspace = true }
+rand = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+thiserror = { workspace = true }
+
+fendermint_testing = { path = "../../testing", features = ["arb"] }
+fendermint_vm_message = { path = "../../vm/message", features = ["arb"] }

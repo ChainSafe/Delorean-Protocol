@@ -1,0 +1,60 @@
+name: Deploy to calibration net on a dedicated server
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  # Only allow one run at a time for this workflow
+  group: deploy-to-dedicated-host
+  cancel-in-progress: true
+
+jobs:
+  deploy_to_dedicated_host:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - name: Copy deployment script files to the host
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEDICATED_SERVER_IP_ADDRESS }}
+          username: ubuntu
+          key: ${{ secrets.DEDICATED_SERVER_PRIVATE_KEY }}
+          source: "scripts/deploy_subnet_under_calibration_net/deploy.sh"
+          target: "/home/ubuntu"
+      - name: Copy config files to the host
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEDICATED_SERVER_IP_ADDRESS }}
+          username: ubuntu
+          key: ${{ secrets.DEDICATED_SERVER_PRIVATE_KEY }}
+          source: "scripts/deploy_subnet_under_calibration_net/.ipc"
+          target: "/home/ubuntu"
+      - name: Set up ipc config folder on the host
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEDICATED_SERVER_IP_ADDRESS }}
+          username: ubuntu
+          key: ${{ secrets.DEDICATED_SERVER_PRIVATE_KEY }}
+          script: rm -rf /home/ubuntu/.ipc && cp -r /home/ubuntu/scripts/deploy_subnet_under_calibration_net/.ipc /home/ubuntu/
+      - name: Create wallet file locally
+        run: |
+          echo '${{ secrets.CI_TEST_WALLET_JSON }}' > evm_keystore.json
+      - name: Copy wallet file to the host
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEDICATED_SERVER_IP_ADDRESS }}
+          username: ubuntu
+          key: ${{ secrets.DEDICATED_SERVER_PRIVATE_KEY }}
+          source: "evm_keystore.json"
+          target: "/home/ubuntu/.ipc"
+      - name: Run deploy scripts on the host
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEDICATED_SERVER_IP_ADDRESS }}
+          username: ubuntu
+          key: ${{ secrets.DEDICATED_SERVER_PRIVATE_KEY }}
+          script: bash -il /home/ubuntu/scripts/deploy_subnet_under_calibration_net/deploy.sh ${{ github.ref_name }}
+          command_timeout: 50m

@@ -1,0 +1,10 @@
+{
+  "state_root": "QmQysvBaHAk7sygxwxzTN2mdvA5jqXMhXzSqTDSNDDJBnF",
+  "timestamp": 4888195286957380285,
+  "network_version": 21,
+  "base_fee": "19429382762560951179258988865468432764",
+  "circ_supply": "250860824295515106050023062062359002052",
+  "chain_id": 0,
+  "power_scale": 3,
+  "app_version": 1
+}

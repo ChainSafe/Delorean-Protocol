@@ -1,0 +1,242 @@
+[workspace]
+resolver = "2"
+members = [
+  # contracts
+  "contracts/binding",
+
+  # merkle
+  "ext/merkle-tree-rs",
+
+  # ipc
+  "ipc/cli",
+  "ipc/wallet",
+  "ipc/provider",
+  "ipc/api",
+  "ipc/types",
+
+  # ipld
+  "ipld/resolver",
+
+  # fendermint
+  "fendermint/abci",
+  "fendermint/app",
+  "fendermint/app/options",
+  "fendermint/crypto",
+  "fendermint/app/settings",
+  "fendermint/eth/*",
+  "fendermint/rocksdb",
+  "fendermint/rpc",
+  "fendermint/storage",
+  "fendermint/testing",
+  "fendermint/testing/materializer",
+  "fendermint/testing/*-test",
+  "fendermint/tracing",
+  "fendermint/vm/*",
+  "fendermint/actors",
+  "fendermint/actors/chainmetadata",
+]
+
+[workspace.package]
+authors = ["Protocol Labs"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+license-file = "LICENSE-APACHE"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+## dummy trigger ci
+
+[workspace.dependencies]
+anyhow = "1"
+arbitrary = { version = "1", features = ["derive"] }
+arbtest = "0.2"
+async-recursion = "1"
+async-stm = "0.4"
+async-trait = "0.1"
+async-channel = "1.8.0"
+axum = { version = "0.6", features = ["ws"] }
+base64 = "0.21"
+bollard = "0.15"
+blake2b_simd = "1.0"
+bloom = "0.3"
+bytes = "1.4"
+clap = { version = "4.1", features = ["derive", "env", "string"] }
+byteorder = "1.5.0"
+config = "0.13"
+dirs = "5.0"
+dircpy = "0.3"
+either = "1.10"
+env_logger = "0.10"
+erased-serde = "0.3"
+ethers = { version = "2.0.13", features = ["abigen", "ws"] }
+ethers-core = { version = "2.0.13" }
+ethers-contract = "2.0.13"
+fnv = "1.0"
+futures = "0.3"
+futures-core = "0.3"
+futures-util = "0.3"
+gcra = "0.4"
+hex = "0.4"
+hex-literal = "0.4.1"
+im = "15.1.0"
+integer-encoding = { version = "3.0.3", default-features = false }
+jsonrpc-v2 = { version = "0.11", default-features = false, features = [
+  "bytes-v10",
+] }
+k256 = "0.11" # Same as tendermint-rs
+lazy_static = "1.4"
+libipld = { version = "0.16", default-features = false, features = [
+  "dag-cbor",
+] }
+libp2p = { version = "0.53", default-features = false, features = [
+  "gossipsub",
+  "kad",
+  "identify",
+  "ping",
+  "noise",
+  "yamux",
+  "tcp",
+  "dns",
+  "request-response",
+  "metrics",
+  "tokio",
+  "macros",
+  "serde",
+  "secp256k1",
+  "plaintext",
+] }
+libp2p-mplex = { version = "0.41" }
+# libp2p-bitswap = "0.25.1"
+libp2p-bitswap = { git = "https://github.com/consensus-shipyard/libp2p-bitswap.git", branch = "chore-upgrade-libipld" } # Updated to libipld 0.16
+libsecp256k1 = "0.7"
+literally = "0.1.3"
+log = "0.4"
+lru_time_cache = "0.11"
+multiaddr = "0.18"
+multihash = { version = "0.18.1", default-features = false, features = [
+  "sha2",
+  "sha3",
+] }
+num-bigint = "0.4"
+num-derive = "0.3"
+num-traits = "0.2"
+num_enum = "0.7.2"
+paste = "1"
+pin-project = "1.1.2"
+prometheus = "0.13"
+prometheus_exporter = "0.8"
+prost = { version = "0.11" }
+quickcheck = "1"
+quickcheck_async = "0.1"
+quickcheck_macros = "1"
+rand = "0.8"
+rand_chacha = "0.3"
+regex = "1"
+reqwest = { version = "0.11.13", features = ["json"] }
+sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_bytes = "0.11"
+serde_json = { version = "1", features = ["raw_value"] }
+serde_yaml = { version = "0.9" }
+serde_tuple = "0.5"
+serde_with = "2.3"
+serial_test = "3.0"
+strum = { version = "0.26.1", features = ["derive"] }
+tempfile = "3.7"
+thiserror = "1"
+tokio = { version = "1", features = [
+  "rt-multi-thread",
+  "macros",
+  "fs",
+  "io-util",
+  "io-std",
+  "sync",
+] }
+tokio-stream = "0.1.14"
+tokio-util = { version = "0.7.8", features = ["compat"] }
+tokio-tungstenite = { version = "0.18.0", features = ["native-tls"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "registry"] }
+tracing-appender = "0.2.3"
+url = { version = "2.4.1", features = ["serde"] }
+zeroize = "1.6"
+
+# Workspace deps
+ipc-api = { path = "ipc/api" }
+ipc-provider = { path = "ipc/provider" }
+ipc-wallet = { path = "ipc/wallet", features = ["with-ethers"] }
+ipc_ipld_resolver = { path = "ipld/resolver" }
+ipc-types = { path = "ipc/types" }
+ipc_actors_abis = { path = "contracts/binding" }
+
+# Vendored for cross-compilation, see https://github.com/cross-rs/cross/wiki/Recipes#openssl
+# Make sure every top level build target actually imports this dependency, and don't end up
+# depending on the same _without_ the "vendored" feature, because then the Docker build for
+# for ARM64 on AMD64 will fail, it won't find the OpenSSL installation.
+openssl = { version = "0.10", features = ["vendored"] }
+
+# NOTE: When upgrading the FVM it may cause our fendermint/actors/build.rs to fail as it can
+# pull in crates as transitive dependencies that do not support Wasm architector. If this
+# happens, try removing "crypto" feature from fvm_shared dependency in contracts/binding/Cargo.toml
+# and run `cargo build`. Then add the "crypto" feature back and run `cargo build` again.
+fvm = { version = "4.1.0", default-features = false } # no opencl feature or it fails on CI
+fvm_shared = { version = "4.1.0" }
+fvm_sdk = { version = "4.1.0" }
+
+fvm_ipld_blockstore = "0.2.0"
+fvm_ipld_car = "0.7.1"
+fvm_ipld_encoding = "0.4.0"
+fvm_ipld_hamt = "0.9.0"
+fvm_ipld_amt = "0.6.2"
+
+# Local FVM debugging
+# fvm = { path = "../ref-fvm/fvm", default-features = false }
+# fvm_ipld_blockstore = { path = "../ref-fvm/ipld/blockstore" }
+# fvm_ipld_encoding = { path = "../ref-fvm/ipld/encoding" }
+# fvm_ipld_car = { path = "../ref-fvm/ipld/car" }
+# fvm_ipld_hamt = { path = "../ref-fvm/ipld/hamt" }
+# fvm_shared = { path = "../ref-fvm/shared" }
+
+# We are using the bundle for the builtin-actors dependency, and repeating DTO classes on our side,
+# to cut down the time it takes to compile everything. However, some projects have a "shared" part,
+# and this copy-paste is clunky, so at least for those that have it, we should use it.
+# Keep the version here in sync with the Makefile!
+fil_actors_evm_shared = { git = "https://github.com/filecoin-project/builtin-actors", tag = "v12.0.0" }
+fil_actor_eam = { git = "https://github.com/filecoin-project/builtin-actors", tag = "v12.0.0" }
+fil_actors_runtime = { git = "https://github.com/filecoin-project/builtin-actors", tag = "v12.0.0" }
+
+fendermint_actor_eam = { path = "./fendermint/actors/eam" }
+
+cid = { version = "0.10.1", default-features = false, features = [
+  "serde-codec",
+  "std",
+] }
+
+frc42_dispatch = "6.0.0"
+
+# Using the same tendermint-rs dependency as tower-abci. From both we are interested in v037 modules.
+tower-abci = { version = "0.7" }
+tower = { version = "0.4" }
+tendermint = { version = "0.31", features = ["secp256k1"] }
+tendermint-config = "0.33.0"
+tendermint-rpc = { version = "0.31", features = [
+  "secp256k1",
+  "http-client",
+  "websocket-client",
+] }
+tendermint-proto = { version = "0.31" }
+
+[patch.crates-io]
+# Use stable-only features.
+gcra = { git = "https://github.com/consensus-shipyard/gcra-rs.git", branch = "main" }
+
+[profile.wasm]
+inherits = "release"
+panic = "abort"
+overflow-checks = false
+lto = true
+opt-level = "z"
+strip = true
+codegen-units = 1
+incremental = false

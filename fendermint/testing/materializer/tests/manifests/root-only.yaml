@@ -1,0 +1,26 @@
+accounts:
+  alice: {}
+  bob: {}
+  charlie: {}
+rootnet:
+  type: New
+  validators:
+    alice: '100'
+  balances:
+    alice: '1000000000000000000'
+    bob: '2000000000000000000'
+    charlie: '3000000000000000000'
+  nodes:
+    node-1:
+      mode:
+        type: Validator
+        validator: alice
+      ethapi: false
+      seed_nodes: []
+
+    node-2:
+      mode:
+        type: Full
+      ethapi: true
+      seed_nodes:
+        - node-1

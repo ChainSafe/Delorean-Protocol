@@ -1,0 +1,58 @@
+[package]
+name = "fendermint_vm_snapshot"
+description = "Produce and consume ledger snapshots"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+async-stm = { workspace = true }
+cid = { workspace = true }
+dircpy = { workspace = true }
+futures = { workspace = true }
+im = { workspace = true }
+multihash = { workspace = true }
+sha2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+
+arbitrary = { workspace = true, optional = true }
+quickcheck = { workspace = true, optional = true }
+
+tendermint = { workspace = true }
+tendermint-rpc = { workspace = true }
+
+fvm_ipld_blockstore = { workspace = true }
+fvm_ipld_car = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+fvm_shared = { workspace = true, optional = true, features = ["arb"] }
+
+fendermint_vm_interpreter = { path = "../interpreter" }
+fendermint_vm_core = { path = "../core", optional = true }
+fendermint_testing = { path = "../../testing", features = ["arb"], optional = true }
+
+[dev-dependencies]
+fvm = { workspace = true }
+fendermint_testing = { path = "../../testing", features = ["golden"] }
+fendermint_vm_interpreter = { path = "../interpreter", features = ["bundle"] }
+fendermint_vm_genesis = { path = "../genesis", features = ["arb"] }
+fendermint_vm_snapshot = { path = ".", features = ["arb"] }
+
+[features]
+default = []
+arb = [
+  "arbitrary",
+  "quickcheck",
+  "fvm_shared/arb",
+  "fendermint_vm_core",
+  "fendermint_testing/arb",
+]

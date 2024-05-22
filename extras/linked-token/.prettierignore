@@ -1,0 +1,12 @@
+# Ignore everything in the lib folder
+lib/
+package.json
+package-lock.json
+out/
+.out/
+artifacts/
+cache/
+cache_hardhat/
+typechain/
+.storage-layouts/
+node_modules/

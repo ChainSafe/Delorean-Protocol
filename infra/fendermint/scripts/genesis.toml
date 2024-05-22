@@ -1,0 +1,41 @@
+[tasks.genesis-new]
+extend = "fendermint-tool"
+env = { "CMD" = "genesis --genesis-file /data/genesis.json new --chain-name ${NETWORK_NAME} --base-fee ${BASE_FEE} --timestamp ${TIMESTAMP} --power-scale ${POWER_SCALE}" }
+
+## Create the validator key pair
+## Takes:
+## - KEYS_SUBDIR:             directory under /data where to store the key.
+## - VALIDATOR_KEY_NAME:      name of the key.
+[tasks.genesis-new-key]
+extend = "fendermint-tool"
+env = { "CMD" = "key gen --out-dir /data/${NODE_NAME}/${KEYS_SUBDIR} --name ${VALIDATOR_KEY_NAME}" }
+script.pre = "mkdir -p ${BASE_DIR}/${NODE_NAME}/${KEYS_SUBDIR}"
+script.post = "chmod 600 ${BASE_DIR}/${NODE_NAME}/${KEYS_SUBDIR}/${VALIDATOR_KEY_NAME}.sk"
+
+[tasks.genesis-new-accounts]
+dependencies = ["genesis-new-account-f1", "genesis-new-account-eth"]
+
+[tasks.genesis-new-account-f1]
+extend = "fendermint-tool"
+env = { "CMD" = "genesis --genesis-file /data/genesis.json add-account --public-key /data/${NODE_NAME}/${VALIDATOR_PUB_KEY_PATH} --balance ${BALANCE}" }
+
+[tasks.genesis-new-account-eth]
+extend = "fendermint-tool"
+env = { "CMD" = "genesis --genesis-file /data/genesis.json add-account --kind ethereum --public-key /data/${NODE_NAME}/${VALIDATOR_PUB_KEY_PATH} --balance ${BALANCE}" }
+
+[tasks.genesis-add-validator]
+extend = "fendermint-tool"
+env = { "CMD" = "genesis --genesis-file /data/genesis.json add-validator --public-key /data/${NODE_NAME}/${VALIDATOR_PUB_KEY_PATH} --power 1" }
+
+[tasks.genesis-new-gateway]
+extend = "fendermint-tool"
+env = { "CMD" = """genesis --genesis-file /data/genesis.json ipc gateway --subnet-id /r0 \
+    --bottom-up-check-period 10 \
+    --msg-fee 10 \
+    --majority-percentage 67 \
+    """ }
+
+[tasks.genesis-write]
+extend = "fendermint-tool"
+env = { "CMD" = "genesis --genesis-file /data/genesis.json into-tendermint --out /data/genesis.committed.json" }
+script.post = "cp ${BASE_DIR}/genesis.committed.json ${CMT_DIR}/config/genesis.json"

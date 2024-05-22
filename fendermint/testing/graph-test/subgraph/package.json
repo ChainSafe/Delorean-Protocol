@@ -1,0 +1,24 @@
+{
+  "name": "subgraph-repo-example",
+  "version": "1.0.0",
+  "description": "An example repo to get you started with Subgraphs. Based on the example [Hedera Smart Contracts Repo](https://github.com/Daniel-K-Ivanov/hedera-contracts-repo-example)",
+  "main": "index.js",
+  "scripts": {
+    "compile": "npx mustache config/testnet.json subgraph.template.yaml > subgraph.yaml && graph codegen && graph build",
+    "create-local": "npx @graphprotocol/graph-cli create --node http://localhost:8020/ Greeter",
+    "remove-local": "npx @graphprotocol/graph-cli remove --node http://localhost:8020/ Greeter",
+    "deploy-local": "npx @graphprotocol/graph-cli deploy --node http://localhost:8020/ -l v0.0.1 --ipfs http://localhost:5001 Greeter",
+    "test": "npx @graphprotocol/graph-cli test",
+    "graph-node": "docker compose --file ./graph-node/docker-compose.yaml up -d",
+    "graph-local-clean": "docker compose down -v && docker-compose rm -v && rm -rf data/ipfs data/postgres"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "0.45.2",
+    "@graphprotocol/graph-ts": "0.27.0",
+    "@protofire/subgraph-toolkit": "^0.1.2"
+  },
+  "devDependencies": {
+    "mustache": "^4.2.0",
+    "matchstick-as": "0.5.0"
+  }
+}

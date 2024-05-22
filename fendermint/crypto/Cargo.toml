@@ -1,0 +1,16 @@
+[package]
+name = "fendermint_crypto"
+description = "Cryptographic utilities"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Defined here so no other crate keeps a direct reference to it.
+libsecp256k1 = "0.7"
+
+anyhow = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
+zeroize = { workspace = true }

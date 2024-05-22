@@ -1,0 +1,160 @@
+extend = [
+  { path = "scripts/docker.toml" },
+  { path = "scripts/cometbft.toml" },
+  { path = "scripts/fendermint.toml" },
+  { path = "scripts/ethapi.toml" },
+  { path = "scripts/genesis.toml" },
+  { path = "scripts/node.toml" },
+  { path = "scripts/promtail.toml" },
+  { path = "scripts/testnet.toml" },
+  { path = "scripts/testnode.toml" },
+  { path = "scripts/subnet.toml" },
+]
+
+[config]
+default_to_workspace = false
+
+[env]
+# General network-specific parameters
+SUBNET_ID = { value = "/r0", condition = { env_not_set = ["SUBNET_ID"] } }
+# The network name is derived from the SUBNET_ID, replacing slashes with dashes, and dropping the first dash if any.
+NETWORK_NAME = { script = ["echo $SUBNET_ID | sed -e 's|/|-|g' -e 's|^-||1'"] }
+# External P2P address advertised by CometBFT to other peers.
+CMT_P2P_EXTERNAL_ADDR = { value = "", condition = { env_not_set = ["CMT_P2P_EXTERNAL_ADDR"] } }
+CMT_P2P_HOST_PORT = { value = "26656", condition = { env_not_set = ["CMT_P2P_HOST_PORT"] } }
+CMT_RPC_HOST_PORT = { value = "26657", condition = { env_not_set = ["CMT_RPC_HOST_PORT"] } }
+ETHAPI_HOST_PORT = { value = "8545", condition = { env_not_set = ["ETHAPI_HOST_PORT"] } }
+RESOLVER_HOST_PORT = { value = "26655", condition = { env_not_set = ["RESOLVER_HOST_PORT"] } }
+
+BALANCE = { value = "1000", condition = { env_not_set = ["BALANCE"] } }
+BASE_FEE = { value = "1000", condition = { env_not_set = ["BASE_FEE"] } }
+TIMESTAMP = { value = "1680101412", condition = { env_not_set = ["TIMESTAMP"] } }
+POWER_SCALE = { value = "3", condition = { env_not_set = ["POWER_SCALE"] } }
+
+# IPC subnet related parameters
+# Use calibration as default value
+NODE_NAME = { value = "ipc-node", condition = { env_not_set = ["NODE_NAME"] } }
+PARENT_ENDPOINT = { value = "https://api.calibration.node.glif.io/rpc/v1", condition = { env_not_set = [
+  "PARENT_ENDPOINT",
+] } }
+PARENT_GATEWAY = { value = "0x56948d2CFaa2EF355B8C08Ac925202db212146D1", condition = { env_not_set = [
+  "PARENT_GATEWAY",
+] } }
+PARENT_REGISTRY = { value = "0x6A4884D2B6A597792dC68014D4B7C117cca5668e", condition = { env_not_set = [
+  "PARENT_REGISTRY",
+] } }
+FM_NETWORK = { value = "test", condition = { env_not_set = ["FM_NETWORK"] } }
+TOPDOWN_CHAIN_HEAD_DELAY = { value = "10", condition = { env_not_set = [
+  "TOPDOWN_CHAIN_HEAD_DELAY",
+] } }
+TOPDOWN_PROPOSAL_DELAY = { value = "2", condition = { env_not_set = ["TOPDOWN_PROPOSAL_DELAY"] } }
+TOPDOWN_MAX_PROPOSAL_RANGE = { value = "100", condition = { env_not_set = [
+  "TOPDOWN_MAX_PROPOSAL_RANGE",
+] } }
+# Comma-separated list of bootstrap nodes to be used by the CometBFT node.
+BOOTSTRAPS = { value = "", condition = { env_not_set = ["BOOTSTRAPS"] } }
+# Comma-separate list of addresses that's allowed to deploy contracts to this subnet.
+# No restrictions to deploy contracts if not set or empty.
+EAM_ALLOWED_ADDR_LIST = { value = "", condition = { env_not_set = ["EAM_ALLOWED_ADDR_LIST"] } }
+
+# Comma-separated list of multiaddresses for the IPLD resolver to connect to.
+# This should have the form of "/ip4/198.51.100.2/tcp/26655/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb"
+# where the `/p2p/<peer-id>` can for example be obtained by the `fendermint key show-peer-id` command.
+RESOLVER_BOOTSTRAPS = { value = "", condition = { env_not_set = ["RESOLVER_BOOTSTRAPS"] } }
+
+PRIVATE_KEY_PATH = { value = "", condition = { env_not_set = ["PRIVATE_KEY_PATH"] } }
+
+# Deployment-related
+BASE_DIR = "${HOME}/.ipc/${NETWORK_NAME}/${NODE_NAME}"
+FM_DIR = "${BASE_DIR}/${NODE_NAME}/fendermint"
+CMT_DIR = "${BASE_DIR}/${NODE_NAME}/cometbft"
+
+# Common env vars
+ENV_FILE = "${BASE_DIR}/.env"
+
+GENESIS_FILE = "${BASE_DIR}/genesis.json"
+KEYS_SUBDIR = "keys"
+
+VALIDATOR_KEY_NAME = "validator_key"
+VALIDATOR_PUB_KEY_PATH = "${KEYS_SUBDIR}/${VALIDATOR_KEY_NAME}.pk"
+VALIDATOR_PRIV_KEY_PATH = "${KEYS_SUBDIR}/${VALIDATOR_KEY_NAME}.sk"
+
+NETWORK_KEY_NAME = "network_key"
+NETWORK_PUB_KEY_PATH = "${KEYS_SUBDIR}/${NETWORK_KEY_NAME}.pk"
+NETWORK_PRIV_KEY_PATH = "${KEYS_SUBDIR}/${NETWORK_KEY_NAME}.sk"
+
+COMETBFT_SUBDIR = "cometbft"
+
+CMT_CONTAINER_NAME = "${NODE_NAME}-cometbft"
+FM_CONTAINER_NAME = "${NODE_NAME}-fendermint"
+ETHAPI_CONTAINER_NAME = "${NODE_NAME}-ethapi"
+PROMTAIL_CONTAINER_NAME="${NODE_NAME}-promtail"
+
+
+CMT_DOCKER_IMAGE = "cometbft/cometbft:v0.37.x"
+FM_DOCKER_TAG = "latest"
+FM_DOCKER_IMAGE = "fendermint:${FM_DOCKER_TAG}"
+FM_REMOTE_DOCKER_IMAGE = "ghcr.io/consensus-shipyard/fendermint:${FM_DOCKER_TAG}"
+PROMTAIL_DOCKER_IMAGE = "grafana/promtail:latest"
+# If this wasn't present, any wait task is skipped.
+CARGO_MAKE_WAIT_MILLISECONDS = 5000
+# This wait time seems to work locally.
+CMT_WAIT_MILLIS = 20000
+# Keep example logs to a minimum.
+VERBOSITY = ""
+# supports info, error, debug, etc.
+LOG_LEVEL = "info"
+ETHAPI_LOG_LEVEL = { value = "${LOG_LEVEL}", condition = { env_not_set = ["ETHAPI_LOG_LEVEL"] } }
+FM_LOG_LEVEL = { value = "${LOG_LEVEL}", condition = { env_not_set = ["FM_LOG_LEVEL"] } }
+
+[tasks.info]
+script = """
+echo
+echo Chain info:
+echo - Chain: ${SUBNET_ID}
+echo - Balance: ${BALANCE}
+echo - Base Fee: ${BASE_FEE}
+echo - Timestamp: ${TIMESTAMP}
+echo
+echo Single node testnet layout:
+echo - IPC directory: ${BASE_DIR}
+echo - CometBFT directory: ${CMT_DIR}
+echo - Fendermint directory: ${FM_DIR}
+echo - Keys directory: ${KEYS_DIR}
+echo - Genesis file: ${GENESIS_FILE}
+echo - Validator Private key: ${VALIDATOR_PRIV_KEY_PATH}
+echo - Network: ${NETWORK_NAME}
+echo - CometBFT container: ${CMT_CONTAINER_NAME}
+echo - Fendermint container: ${FM_CONTAINER_NAME}
+echo
+echo
+echo 4 nodes testnet layout:
+echo - IPC directory: ${BASE_DIR}
+echo - Genesis file: ${GENESIS_FILE}
+echo - Network: ${NETWORK_NAME}
+echo
+"""
+
+[tasks.default]
+clear = true
+script_runner = "@duckscript"
+script = [
+  '''
+    echo
+    echo Main tasks:
+    echo - testnet: run 4-nodes testnet
+    echo - testnet-down: stop the testnet
+    echo - testnode: run a test node
+    echo - testnode-down: stop the test node
+    echo - info: Print the setup information
+    echo
+    echo Most tasks use these environment variables:
+    echo - SUBNET_ID (default '${SUBNET_ID}'): the target IPC subnet
+    echo
+    echo Run 'cargo make -e SUBNET_ID=chain -e BALANCE=100 -e BASE_FEE=200 ... COMMAND' to populate the variables from CLI or
+    echo Run 'cargo make --env-file=/PATH/.env COMMAND' to populate the variables from the file before running the command.
+    echo
+    echo Run 'cargo make --list-all-steps' for a complete list of available tasks.
+    echo
+''',
+]

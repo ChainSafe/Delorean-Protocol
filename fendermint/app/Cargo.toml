@@ -1,0 +1,87 @@
+[package]
+name = "fendermint_app"
+description = "Tendermint ABCI++ Application to implement an IPLD+FVM enabled sidechain"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-stm = { workspace = true }
+async-trait = { workspace = true }
+bytes = { workspace = true }
+cid = { workspace = true }
+hex = { workspace = true }
+k256 = { workspace = true }
+lazy_static = { workspace = true }
+libipld = { workspace = true }
+libp2p = { workspace = true }
+libp2p-bitswap = { workspace = true }
+multiaddr = { workspace = true }
+num-traits = { workspace = true }
+openssl = { workspace = true }
+paste = { workspace = true }
+prometheus = { workspace = true }
+prometheus_exporter = { workspace = true }
+prost = { workspace = true }
+rand_chacha = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_with = { workspace = true }
+tendermint = { workspace = true }
+tendermint-config = { workspace = true }
+tendermint-rpc = { workspace = true }
+tendermint-proto = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-abci = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+literally = { workspace = true }
+
+fendermint_abci = { path = "../abci" }
+fendermint_app_options = { path = "./options" }
+fendermint_app_settings = { path = "./settings" }
+fendermint_crypto = { path = "../crypto" }
+fendermint_eth_api = { path = "../eth/api" }
+fendermint_materializer = { path = "../testing/materializer" }
+fendermint_rocksdb = { path = "../rocksdb" }
+fendermint_rpc = { path = "../rpc" }
+fendermint_storage = { path = "../storage" }
+fendermint_tracing = { path = "../tracing" }
+fendermint_vm_actor_interface = { path = "../vm/actor_interface" }
+fendermint_vm_core = { path = "../vm/core" }
+fendermint_vm_encoding = { path = "../vm/encoding" }
+fendermint_vm_event = { path = "../vm/event" }
+fendermint_vm_genesis = { path = "../vm/genesis" }
+fendermint_vm_interpreter = { path = "../vm/interpreter", features = [
+    "bundle",
+] }
+fendermint_vm_message = { path = "../vm/message" }
+fendermint_vm_resolver = { path = "../vm/resolver" }
+fendermint_vm_snapshot = { path = "../vm/snapshot" }
+fendermint_vm_topdown = { path = "../vm/topdown" }
+
+fvm = { workspace = true }
+fvm_ipld_blockstore = { workspace = true }
+fvm_ipld_car = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+fvm_shared = { workspace = true }
+ipc-api = { workspace = true }
+ipc-provider = { workspace = true }
+ipc_ipld_resolver = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+
+fendermint_vm_genesis = { path = "../vm/genesis", features = ["arb"] }
+fendermint_vm_snapshot = { path = "../vm/snapshot", features = ["arb"] }
+
+# Using a single binary to run the application as well as to execute client commands.
+[[bin]]
+name = "fendermint"
+path = "src/main.rs"

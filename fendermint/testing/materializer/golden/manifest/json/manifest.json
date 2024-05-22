@@ -1,0 +1,230 @@
+{
+  "accounts": {
+    "6zyA7": {},
+    "9hbSsB": {},
+    "EHQ-": {},
+    "IRr7T": {}
+  },
+  "rootnet": {
+    "type": "External",
+    "chain_id": 1020675456393680,
+    "deployment": {
+      "type": "Existing",
+      "gateway": "0x11e993b2bd02766156a9e10d2781a943879abb53",
+      "registry": "0xda6f5719152b186a828acb0a4493e25a37ac43b7"
+    },
+    "urls": [
+      "https://ya64_.api.calibration.node.glif.io/rpc/v1",
+      "https://_oaxfc4c.api.calibration.node.glif.io/rpc/v1",
+      "https://m80.api.calibration.node.glif.io/rpc/v1"
+    ]
+  },
+  "subnets": {
+    "-BBkTATP": {
+      "creator": "6zyA7",
+      "validators": {
+        "6zyA7": "8325828212729098344",
+        "EHQ-": "1942350963860584797",
+        "IRr7T": "4680138372343081663"
+      },
+      "balances": {
+        "6zyA7": "4259378155931225643"
+      },
+      "nodes": {
+        "-u8": {
+          "mode": {
+            "type": "Validator",
+            "validator": "6zyA7"
+          },
+          "ethapi": true,
+          "seed_nodes": [],
+          "parent_node": "https://m80.api.calibration.node.glif.io/rpc/v1"
+        },
+        "_fWg6": {
+          "mode": {
+            "type": "Full"
+          },
+          "ethapi": true,
+          "seed_nodes": [
+            "jS4"
+          ],
+          "parent_node": "https://ya64_.api.calibration.node.glif.io/rpc/v1"
+        },
+        "jS4": {
+          "mode": {
+            "type": "Validator",
+            "validator": "EHQ-"
+          },
+          "ethapi": false,
+          "seed_nodes": [
+            "-u8"
+          ],
+          "parent_node": "https://m80.api.calibration.node.glif.io/rpc/v1"
+        }
+      },
+      "relayers": {
+        "bv9B": {
+          "submitter": "IRr7T",
+          "follow_node": "jS4",
+          "submit_node": "https://m80.api.calibration.node.glif.io/rpc/v1"
+        }
+      },
+      "bottom_up_checkpoint": {
+        "period": 67277
+      },
+      "env": {
+        "CMT__K-RY": "匊6\n",
+        "FM__6Tg_iRT": ">"
+      }
+    },
+    "uex": {
+      "creator": "6zyA7",
+      "validators": {
+        "9hbSsB": "5894953243723114349",
+        "EHQ-": "7201584667281066602"
+      },
+      "balances": {
+        "9hbSsB": "8056020496037717271",
+        "IRr7T": "3898224579998834442"
+      },
+      "nodes": {
+        "0Lj6": {
+          "mode": {
+            "type": "Validator",
+            "validator": "EHQ-"
+          },
+          "ethapi": true,
+          "seed_nodes": [
+            "gH8Uf"
+          ],
+          "parent_node": "https://m80.api.calibration.node.glif.io/rpc/v1"
+        },
+        "gH8Uf": {
+          "mode": {
+            "type": "Validator",
+            "validator": "9hbSsB"
+          },
+          "ethapi": true,
+          "seed_nodes": [],
+          "parent_node": "https://ya64_.api.calibration.node.glif.io/rpc/v1"
+        }
+      },
+      "relayers": {
+        "9MBF0C5K": {
+          "submitter": "9hbSsB",
+          "follow_node": "0Lj6",
+          "submit_node": "https://_oaxfc4c.api.calibration.node.glif.io/rpc/v1"
+        },
+        "DVIYFoev": {
+          "submitter": "EHQ-",
+          "follow_node": "gH8Uf",
+          "submit_node": "https://ya64_.api.calibration.node.glif.io/rpc/v1"
+        },
+        "Jg9WZ": {
+          "submitter": "IRr7T",
+          "follow_node": "gH8Uf",
+          "submit_node": "https://ya64_.api.calibration.node.glif.io/rpc/v1"
+        }
+      },
+      "bottom_up_checkpoint": {
+        "period": 22226
+      },
+      "env": {
+        "CMT__HyLavhZ": "⁪S#򺊘",
+        "CMT___m9-": "F?-¥>¯",
+        "FM__8s8myW9d": "銩x\"؄&",
+        "FM__jrlww4": "["
+      },
+      "subnets": {
+        "DBBwcnPZ": {
+          "creator": "9hbSsB",
+          "validators": {
+            "9hbSsB": "218786779909603395"
+          },
+          "balances": {
+            "6zyA7": "3751747136988174159",
+            "9hbSsB": "6184548030841584560"
+          },
+          "nodes": {
+            "q1q7": {
+              "mode": {
+                "type": "Validator",
+                "validator": "9hbSsB"
+              },
+              "ethapi": true,
+              "seed_nodes": [],
+              "parent_node": "0Lj6"
+            }
+          },
+          "relayers": {
+            "3Tpx": {
+              "submitter": "IRr7T",
+              "follow_node": "q1q7",
+              "submit_node": "gH8Uf"
+            },
+            "KEHk3k": {
+              "submitter": "IRr7T",
+              "follow_node": "q1q7",
+              "submit_node": "gH8Uf"
+            },
+            "cnMB3": {
+              "submitter": "IRr7T",
+              "follow_node": "q1q7",
+              "submit_node": "gH8Uf"
+            }
+          },
+          "bottom_up_checkpoint": {
+            "period": 75543
+          }
+        },
+        "uZEO3": {
+          "creator": "IRr7T",
+          "validators": {
+            "EHQ-": "4627470862527818298",
+            "IRr7T": "1392419311846296547"
+          },
+          "balances": {
+            "6zyA7": "1",
+            "EHQ-": "2497512308460913818",
+            "IRr7T": "2815621020594761215"
+          },
+          "nodes": {
+            "UOVVil-": {
+              "mode": {
+                "type": "Validator",
+                "validator": "IRr7T"
+              },
+              "ethapi": false,
+              "seed_nodes": [
+                "xrX7C_k_"
+              ],
+              "parent_node": "gH8Uf"
+            },
+            "xrX7C_k_": {
+              "mode": {
+                "type": "Validator",
+                "validator": "EHQ-"
+              },
+              "ethapi": true,
+              "seed_nodes": [],
+              "parent_node": "0Lj6"
+            }
+          },
+          "relayers": {
+            "ZfdBJ": {
+              "submitter": "9hbSsB",
+              "follow_node": "xrX7C_k_",
+              "submit_node": "0Lj6"
+            }
+          },
+          "bottom_up_checkpoint": {
+            "period": 2600
+          },
+          "env": {
+            "CMT____DUE0": "H7/‑!"
+          }
+        }
+      }
+    }
+  }
+}

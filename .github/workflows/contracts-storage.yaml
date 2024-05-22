@@ -1,0 +1,37 @@
+name: Storage check
+
+# This workflow is triggered from the main CI workflow.
+on:
+  workflow_call:
+
+env:
+  RPC_URL: https://filecoin-calibration.chainup.net/rpc/v1
+  PRIVATE_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+jobs:
+  storage:
+    name: Storage layout check
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup Node 16
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+          cache-dependency-path: 'contracts/package-lock.json'
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          cache: false
+
+      - name: Install Node dependencies
+        run: cd contracts && npm i --unsafe-perm
+
+      - name: Storage check
+        run: cd contracts && npx hardhat storage-layout --check

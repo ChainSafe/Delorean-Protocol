@@ -1,0 +1,8 @@
+.idea/
+*.iml
+/target
+docs/diagrams/plantuml.jar
+bin
+/lotus
+fx.dot
+testing/itest/logs

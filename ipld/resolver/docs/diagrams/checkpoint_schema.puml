@@ -1,0 +1,112 @@
+
+@startuml Checkpointing Schema
+
+package "Subnet Actor in parent subnet" #79ADDC {
+  entity "Validator" as validator {
+    * public_key <<PK>>
+    --
+    * power: delegated stake
+  }
+
+  entity "Configuration" as config {
+    * config_number <<PK>>
+    --
+  }
+
+  entity "Validator Snapshot" as validator_snapshot {
+    * config_number <<FK>>
+    * public_key <<FK>>
+    --
+    * power: delegated stake in the config
+  }
+
+  entity "Submitted Checkpoint" as submit_ckpt {
+    * checkpoint <<FK>>
+  }
+  note bottom of submit_ckpt
+    Such that the signatures
+    form a Quorum in the config.
+  end note
+}
+
+package "checkpointing" #FFEE93 {
+  entity "Checkpoint" as ckpt {
+    * epoch_number <<FK>>
+    --
+    * next_config_number <<FK>>
+    * state_hash: CID
+    ...
+  }
+  note bottom of ckpt
+    Next config indicates who will
+    sign the next checkpoint.
+  end note
+
+  entity "Signature" as sig {
+    * public_key <<FK>>: validator public key
+    * checkpoint <<FK>>
+    --
+    * signature
+  }
+}
+
+
+package "child subnet" #FFC09F {
+  entity "Epoch" as epoch {
+    * epoch_number <<PK>>
+    --
+    * config_number <<FK>>
+    * start_block_height <<FK>>
+    * epoch_length
+  }
+
+  entity "Cross Messages" as cross_msgs {
+    * epoch_number <<FK>>
+    --
+    * messages <<FK>>: CID
+  }
+  note bottom of cross_msgs
+    An AMT containing CIDs
+  end note
+
+  entity "Messsage" as msg {
+    * id: CID <<PK>>
+    --
+    * from: address <<FK>>
+    * to: address <<FK>>
+    * nonce
+    * payload
+    ...
+  }
+
+  entity "Block" as block {
+    * hash <<PK>>: CID
+    --
+    * height
+    * messages <<FK>>: CID
+  }
+}
+
+block |o--o{ msg
+
+validator_snapshot }|--|| config
+validator_snapshot }o--|| validator
+
+epoch }o--|| config
+epoch |o--|| block
+epoch ||--|| cross_msgs
+epoch ||--o| ckpt
+
+sig |o--|| ckpt
+sig }o--|| validator
+
+ckpt }o--|| config
+ckpt ||--o| submit_ckpt
+
+
+cross_msgs |o--o{ msg
+
+submit_ckpt .. cross_msgs : can be resolved with the IPLD Resolver
+
+
+@enduml

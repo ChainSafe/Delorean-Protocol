@@ -1,0 +1,80 @@
+name: IPC Issue Template
+description: Use this template to report bugs and other issues
+labels: [bug]
+body:
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue type
+      description: What type of issue would you like to report?
+      multiple: false
+      options:
+        - Bug
+        - Build/Install
+        - Performance
+        - Support
+        - Feature Request
+        - Documentation Bug
+        - Documentation Request
+        - Others
+    validations:
+      required: true
+
+  - type: dropdown
+    id: latest
+    attributes:
+      label: Have you reproduced the bug with the latest dev version?
+      description: We suggest attempting to reproducing the bug with the dev branch
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: e.g. v0.4.0
+    validations:
+      required: true
+  - type: dropdown
+    id: Code
+    attributes:
+      label: Custom code
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+  - type: input
+    id: OS
+    attributes:
+      label: OS platform and distribution
+      placeholder: e.g., Linux Ubuntu 16.04
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Describe the issue
+      description: Also tell us, what did you expect to happen?
+      placeholder: |
+        This is where you get to tell us what went wrong, when doing so, please try to provide a clear and concise description of the bug with all related information:
+        * What you were doing when you experienced the bug? What are you trying to build?
+        * Any *error* messages and logs you saw, *where* you saw them, and what you believe may have caused them (if you have any ideas).
+        * What is the expected behaviour? Links to the code?
+    validations:
+      required: true
+  - type: textarea
+    id: repro-steps
+    attributes:
+      label: Repro steps
+      description: Provide the minimum necessary steps to reproduce the problem.
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell

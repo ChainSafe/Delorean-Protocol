@@ -1,0 +1,1 @@
+ActorState { code: Cid(baeswcp6etwxgcb4a5o5piz3af3qj7ju7mce5tu7azgxm7j2dp2w5g33sui65ebiaq6jjaf6t6amjvbn3jrrc4g2aca35nuylu2c2usshuaaq), state: Cid(baeilp36otpxpxvedcavy5vud5ufx4fbjmccxyqporedzcvq52r7rpxk4naddcamyi2f4wdgkel4u3jcfeekkg4ct), sequence: 10469392735219420655, balance: TokenAmount(0.0), delegated_address: Some(Address("f23gn33d77vo476xlnwecaijagq4anwjf7cigctda")) }

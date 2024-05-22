@@ -1,0 +1,192 @@
+@startuml Checkpointing
+box "Parent Subnet" #EEFBF5
+participant "Parent Node"    as parent_node
+entity      "Parent Gateway" as parent_gateway
+end box
+
+actor       "Validator" as validator
+participant "IPC Agent" as ipc_agent
+participant "Relayer"   as relayer
+
+box "Child Subnet" #FEEFEC
+participant "Child CometBFT"    as child_cometbft
+participant "Child Fendermint"  as child_fendermint
+participant "Child Syncer"      as child_syncer
+entity      "Child Gateway"     as child_gateway
+collections "Child Actors"      as child_actors
+end box
+
+== Initialize ==
+
+validator --> child_cometbft: start
+validator --> child_fendermint: start
+child_fendermint --> child_syncer: start
+validator --> ipc_agent: start
+ipc_agent --> parent_node: subscribe
+relayer   --> child_cometbft: subscribe
+
+== Joining a Subnet ==
+
+validator -> ipc_agent ++: join subnet
+ipc_agent -> parent_node --: TX: join subnet
+parent_node -> parent_node ++: create block and\nexecute transaction
+parent_node -> parent_gateway ++: join(subnet, validator)
+parent_gateway -> parent_gateway : new validator\nconfiguration
+parent_gateway --> ipc_agent : emit new configuration event
+return
+deactivate parent_node
+
+== Syncing with Parent ==
+
+... syncing with the parent at regular intervals ...
+
+child_syncer -> ipc_agent ++: get latest finalized block
+return finalized block height
+
+child_syncer -> ipc_agent ++: get new configurations up to finalized block
+return configuration changes
+
+... when this validator creates a block ...
+
+child_cometbft -> child_fendermint ++: prepare_proposal
+  child_fendermint -> child_syncer ++: get finalized parent block height
+  return finalized block height
+return proposal(TopDownCheckpoint)
+child_cometbft ->] : broadcast proposal
+
+... for every block created in the subnet ...
+
+child_cometbft <-] : receive proposal
+child_cometbft -> child_fendermint ++: process_proposal(TopDownCheckpoint)
+  child_fendermint -> child_syncer ++: check finality of parent block height
+  return is known and final or not
+return accept or reject
+
+
+child_cometbft <-] : receive block
+
+child_cometbft -> child_fendermint ++: deliver_tx(TopDownCheckpoint)
+  child_fendermint -> child_syncer ++: get configuration changes up to the finalized height
+    child_syncer -> ipc_agent ++: fetch missing configurations
+      ipc_agent -> parent_node++: query state
+        parent_node -> parent_gateway: query state
+      return gateway state
+    return new configurations
+  return new configurations
+  child_fendermint -> child_gateway ++: call GatewayRouterFacet::setMembership
+    child_gateway -> child_gateway : accumulate validator changes
+  return
+return receipts
+
+child_cometbft -> child_fendermint ++: deliver_tx(SignedMessage invoking the Gateway)
+  note left
+    Example of a transaction execution\n
+    enqueueing a bottom-up message.
+  end note
+  child_fendermint -> child_actors ++: invoke with Message
+    child_actors   -> child_gateway ++: send bottom-up CrossMsg
+      child_gateway -> child_gateway : accumulate CrossMsgs
+    return
+  return
+return receipts
+
+== End of Checkpoint Period ==
+
+child_cometbft -> child_fendermint ++: end_block
+alt block height % bottom-up checkpoint period == 0
+  child_fendermint -> child_cometbft ++: get current validator set
+  return power table
+  child_fendermint -> child_fendermint : create Merkle tree of power table
+  child_fendermint -> child_fendermint : set validator set root hash in checkpoint
+
+  child_fendermint -> child_gateway ++: call GatewayRouterFacet::update_membership
+    child_gateway -> child_gateway : clear configuration accumulator
+  return new configurations
+  child_fendermint -> child_fendermint : set next configuration number in checkpoint
+
+  child_fendermint -> child_gateway ++: call GatewayGetterFacet::bottom_up_messages
+  return bottom-up CrossMsgs
+  child_fendermint -> child_fendermint : set CrossMsgs hash in checkpoint
+
+  child_fendermint -> child_gateway ++: call GatewayRouterFacet::create_bottom_up_checkpoint
+    child_gateway -> child_gateway : store checkpoint
+  return
+
+  alt current node is a validator in the power table
+    child_fendermint -> child_fendermint ++: broadcast_signature
+      child_fendermint -> child_fendermint : create Merkle proof of (validator, power)
+      child_fendermint -> child_fendermint : hash the checkpoint
+      child_fendermint -> child_fendermint : sign the checkpoint hash with validator key
+      child_fendermint -> child_fendermint : create a Message to invoke GatewayRouterFacet::add_checkpoint_signature
+      child_fendermint -> child_cometbft ++: query validator nonce
+      return validator actor sequence
+      child_fendermint -> child_cometbft ++: estimate message gas
+      return simulated transaction gas limit
+      child_fendermint -> child_fendermint : sign the Message with the validator key
+      child_fendermint -> child_cometbft : broadast SignedMessage
+    return
+  end
+
+end
+return new configurations (a.k.a. validator updates)
+
+
+== Signature Accumulation ==
+
+child_cometbft <-] : receive transaction with checkpoint signature
+child_cometbft ->] : broadcast block with signature transactions
+child_cometbft <-] : receive block with signature transactions
+
+child_cometbft -> child_fendermint ++: deliver_tx(SignedMessage with checkpoint signature)
+  child_fendermint -> child_gateway++: invoke with Message calling GatewayRouterFacet::add_checkpoint_signature
+    child_gateway -> child_gateway : look up BottomUpCheckpoint at indicated height
+    child_gateway -> child_gateway : validate that the signed hash matches the checkpoint
+    child_gateway -> child_gateway : validate the Merkle proof with the recovered signatory
+    child_gateway -> child_gateway : update the accumulated weight of total signatures
+    alt weight over quorum threshold
+      child_gateway -> child_gateway : mark checkpoint as completed
+      child_gateway --> relayer : emit checkpoint quorum event
+    end
+  return
+return receipts
+
+relayer -> relayer ++: observe quorum event
+  relayer -> child_cometbft ++: query checkpoint at height in quorum event
+    child_cometbft -> child_fendermint ++: ABCI Call query
+      child_fendermint -> child_gateway ++: read-only call to GatewayGetterFacet::bottom_up_checkpoint
+      return BottomUpCheckpoint
+    return BottomUpCheckpoint
+  return BottomUpCheckpoint
+
+    relayer -> child_cometbft ++: query signatures at height in quorum event
+    child_cometbft -> child_fendermint ++: ABCI Call query
+      child_fendermint -> child_gateway ++: read-only call to GatewayGetterFacet::get_checkpoint_signatures (TBD)
+      return MultiSig
+    return MultiSig
+  return MultiSig
+
+  relayer -> child_cometbft ++: query CrossMsgs at height in quorum event
+    child_cometbft -> child_fendermint ++: ABCI Call query
+      child_fendermint -> child_gateway ++: read-only call to GatewayGetterFacet::bottom_up_messages (TBD)
+      return CrossMsgs
+    return CrossMsgs
+  return CrossMsgs
+
+  relayer -> relayer : create Message to invoke GatewayRouterFacet::submit_bottom_up_checkpoint (TBD)
+  relayer -> relayer : sign the Message with the relayer reward key
+relayer -> parent_node --: broadcast SignedMessage
+
+
+== Handle Checkpoint in Parent ==
+
+parent_node <-] : receive block
+
+parent_node -> parent_gateway ++: call GatewayRouterFacet::submit_bottom_up_checkpoint
+  parent_gateway -> parent_gateway: load validator set at current configuration number
+  parent_gateway -> parent_gateway: validate signatures in the checkpoint
+  parent_gateway -> parent_gateway: validate quroum threshold was reached
+  parent_gateway -> parent_gateway: validate cross message hash matches the checkpoint
+  parent_gateway -> parent_gateway: update next configuration number
+  parent_gateway -> parent_gateway: execute cross messages
+return receipt
+@enduml

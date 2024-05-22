@@ -1,0 +1,125 @@
+name: Auto deploy IPC contracts when changed
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - contracts/**
+
+env:
+  GIT_USERNAME: github-actions[bot]
+  GIT_EMAIL: ipc+github-actions[bot]@users.noreply.github.com
+
+concurrency:
+  # Only allow one run at a time for this workflow
+  group: auto-deploy-contracts
+  cancel-in-progress: true
+
+jobs:
+  deploy-contracts:
+    runs-on: ubuntu-latest
+    env:
+      RPC_URL: https://calibration.filfox.info/rpc/v1
+      PRIVATE_KEY: ${{ secrets.CONTRACTS_DEPLOYER_PRIVATE_KEY }}
+    steps:
+      - name: Checkout cd/contracts branch
+        uses: actions/checkout@v4
+        with:
+          ref: cd/contracts
+          submodules: recursive
+          fetch-depth: 0
+          token: ${{ secrets.WORKFLOW_PAT_JIE }}
+
+      - name: (Dry run) Try merge from main branch to see if there's any conflicts that can't be resolved itself
+        run: |
+          git show HEAD
+          git config --global user.name "$GIT_USERNAME"
+          git config --global user.email "$GIT_EMAIL"
+          git checkout main
+          git pull --rebase origin main
+          git checkout cd/contracts
+          git merge main --no-edit --allow-unrelated-histories
+
+      - name: Checkout the branch that triggered this run
+        uses: actions/checkout@v4
+        with:
+          # TODO(jie): After switch to workflow_dispatch only, we should use ref_name.
+          # head_ref only works for workflow triggered by pull requests.
+          # ref: ${{ github.ref_name }}
+          ref: ${{ github.head_ref }}
+          submodules: recursive
+
+      - name: Setup node and npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: contracts/package-lock.json
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Deploy IPC contracts to calibration net
+        id: deploy_contracts
+        run: |
+          cd contracts
+          npm install --save hardhat
+          output=$(make deploy-ipc NETWORK=calibrationnet)
+          echo "deploy_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Parse deploy output
+        run: |
+          deploy_output='${{ steps.deploy_contracts.outputs.deploy_output }}'
+          echo "$deploy_output"
+          deployed_gateway_address=$(echo "$deploy_output" | grep '"Gateway"' | awk -F'"' '{print $4}')
+          deployed_registry_address=$(echo "$deploy_output" | grep '"SubnetRegistry"' | awk -F'"' '{print $4}')
+          echo "gateway_address=$deployed_gateway_address" >> $GITHUB_ENV
+          echo "registry_address=$deployed_registry_address" >> $GITHUB_ENV
+          echo "commit_hash=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+      - name: Review deployed addresses
+        run: |
+          echo "commit_hash: $commit_hash"
+          echo "gateway_address: $gateway_address"
+          echo "registry_address: $registry_address"
+
+      - name: Switch code repo to cd/contracts branch
+        uses: actions/checkout@v4
+        with:
+          ref: cd/contracts
+          submodules: recursive
+          fetch-depth: 0
+          token: ${{ secrets.WORKFLOW_PAT_JIE }}
+
+      - name: Merge from main branch and update cd/contracts branch
+        run: |
+          git config --global user.name "$GIT_USERNAME"
+          git config --global user.email "$GIT_EMAIL"
+          git checkout main
+          git pull --rebase origin main
+          git checkout cd/contracts
+          git merge main --no-edit --allow-unrelated-histories
+          git push -f origin cd/contracts
+
+      - name: Write deployed address to output file
+        run: |
+          mkdir -p deployments
+          json_str='{"commit":"'$commit_hash'","gateway_addr":"'$gateway_address'","registry_addr":"'$registry_address'"}'
+          jq -n "$json_str" > deployments/r314159.json
+          cat deployments/r314159.json
+
+      - name: Commit output file and push it to remote repo
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Update contract address
+          branch: cd/contracts
+          file_pattern: deployments/r314159.json
+          commit_user_name: ${{env.GIT_USERNAME}}
+          commit_user_email: ${{env.GIT_EMAIL}}
+          push_options: '--force'
+          skip_dirty_check: true
+          create_branch: true

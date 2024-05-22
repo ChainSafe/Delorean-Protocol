@@ -1,0 +1,32 @@
+[package]
+name = "fendermint_app_options"
+description = "Fendermint CLI options"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+bytes = { workspace = true }
+clap = { workspace = true }
+hex = { workspace = true }
+lazy_static = { workspace = true }
+num-traits = { workspace = true }
+tendermint-rpc = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+cid = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+fvm_shared = { workspace = true }
+ipc-api = { workspace = true }
+ipc-types = { workspace = true }
+url = { workspace = true }
+
+fendermint_vm_genesis = { path = "../../vm/genesis" }
+fendermint_vm_actor_interface = { path = "../../vm/actor_interface" }
+fendermint_materializer = { path = "../../testing/materializer" }

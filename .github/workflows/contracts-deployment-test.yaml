@@ -1,0 +1,41 @@
+name: Deployment Test
+
+# This workflow is triggered from the main CI workflow.
+on:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '18' # Adjust this as needed for your project
+
+    - name: Install dependencies
+      run: cd contracts && npm install
+
+    - name: Install Foundry
+      run: |
+        cd contracts
+        curl -L https://foundry.paradigm.xyz | bash
+        export PATH="$PATH:/home/runner/.config/.foundry/bin"
+        foundryup
+        forge install
+
+    - name: Generate Ethereum Private Key and Create .env File and run make
+      run: |
+        cd contracts
+        PRIVATE_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+        echo "export PRIVATE_KEY=0x$PRIVATE_KEY" > .env
+        echo "export RPC_URL=http://127.0.0.1:1337" >> .env
+        echo "export CHAIN_ID=1337" >> .env
+        export PATH="$PATH:/home/runner/.config/.foundry/bin"
+        npx ganache-cli -g0 -p1337 --account 0x$PRIVATE_KEY,1001901919191919191  &
+        sleep 5
+        make deploy-ipc

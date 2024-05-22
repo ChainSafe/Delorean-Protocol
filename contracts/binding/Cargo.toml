@@ -1,0 +1,15 @@
+[package]
+name = "ipc_actors_abis"
+description = "Rust bindings for the IPC Solidity Actors"
+version = "0.1.0"
+authors = ["Protocol Labs"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+ethers = { workspace = true, features = ["abigen", "ws"] }
+fvm_shared = { workspace = true, features = ["crypto"] }
+anyhow = { workspace = true }
+
+[build-dependencies]
+ethers = { workspace = true, features = ["abigen", "ws"] }

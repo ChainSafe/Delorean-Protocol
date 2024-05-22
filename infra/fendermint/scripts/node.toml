@@ -1,0 +1,24 @@
+########################################################################################################################
+# Node helpers
+########################################################################################################################
+
+[tasks.node-init]
+dependencies = [
+    "node-clear",
+    "node-mkdir",
+]
+
+[tasks.node-clear]
+script = """
+echo clearing all IPC data
+rm -rf ${BASE_DIR}
+"""
+
+[tasks.node-mkdir]
+script = """
+echo creating directories: $BASE_DIR $FM_DIR $CMT_DIR
+mkdir -p $BASE_DIR
+mkdir -p $FM_DIR
+mkdir -p $CMT_DIR
+touch $ENV_FILE
+"""

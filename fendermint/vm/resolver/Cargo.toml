@@ -1,0 +1,23 @@
+[package]
+name = "fendermint_vm_resolver"
+description = "Resolve IPLD content in messages"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-stm = { workspace = true }
+im = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+
+cid = { workspace = true }
+ipc-api = { workspace = true }
+ipc_ipld_resolver = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

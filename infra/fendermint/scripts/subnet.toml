@@ -1,0 +1,170 @@
+########################################################################################################################
+# Subnet peers
+########################################################################################################################
+
+[tasks.bootstrap]
+env = { "NETWORK_NAME" = "${NETWORK_NAME}", "CMT_DIR" = "${BASE_DIR}/bootstrap/cometbft" }
+run_task = "new-bootstrap"
+
+[tasks.new-bootstrap]
+dependencies = [
+    "bootstrap-down",
+    "fendermint-pull",
+    "node-init",
+    "docker-network-create",
+    "cometbft-config",
+    "seed-enable",
+    "fendermint-deps",
+    "subnet-config",
+    "fendermint-start-subnet",
+    "cometbft-start",
+    # "cometbft-wait",
+    "cometbft-node-id",
+    "bootstrap-node-id",
+    "node-report",
+]
+
+[tasks.bootstrap-node-id]
+run_task = "cometbft-node-id"
+
+[tasks.bootstrap-peer-id]
+run_task = "fendermint-network-peer-id"
+
+[tasks.bootstrap-down]
+dependencies = [
+    "cometbft-destroy",
+    "fendermint-destroy",
+]
+
+[tasks.bootstrap-restart]
+dependencies = [
+    "cometbft-stop",
+    "fendermint-stop",
+    "fendermint-start-subnet",
+    "cometbft-start",
+    "cometbft-wait",
+]
+
+[tasks.child-validator-down]
+run_task = "testnode-down"
+
+[tasks.child-validator]
+workspace = false
+dependencies = [
+    "testnode-down",
+    "fendermint-pull",
+    "node-init",
+    "docker-network-create",
+    "cometbft-config",
+    "fendermint-deps",
+    "validator-config",
+    "fendermint-start-validator",
+    "cometbft-start",
+    "cometbft-wait",
+    "ethapi-start",
+    "node-report",
+]
+
+[tasks.child-validator-restart]
+run_task = { name = [
+    "cometbft-stop",
+    "fendermint-stop",
+    "ethapi-stop",
+    "fendermint-start-validator",
+    "cometbft-start",
+    "cometbft-wait",
+    "ethapi-start",
+] }
+
+[tasks.child-fullnode-down]
+run_task = "testnode-down"
+
+[tasks.child-fullnode-restart]
+run_task = "testnode-restart"
+
+[tasks.child-fullnode]
+workspace = false
+dependencies = [
+    "testnode-down",
+    "fendermint-pull",
+    "node-init",
+    "docker-network-create",
+    "cometbft-config",
+    "fendermint-deps",
+    "subnet-config",
+    "fendermint-start-subnet",
+    "cometbft-start",
+    "cometbft-wait",
+    "ethapi-start",
+    "node-report",
+]
+
+[tasks.subnet-config]
+dependencies = [
+    "subnet-fetch-genesis",
+    "subnet-genesis-set-eam-permissions",
+    "genesis-write",
+    "fendermint-new-network-key",
+]
+
+[tasks.validator-config]
+dependencies = [
+    "subnet-config",
+    "subnet-convert-eth-key",
+    "testnode-export-keys",
+]
+
+[tasks.subnet-convert-eth-key]
+extend = "fendermint-tool"
+env = { "CMD" = "key eth-to-fendermint --secret-key /data/${NODE_NAME}/${KEYS_SUBDIR}/eth.sk --name ${VALIDATOR_KEY_NAME} --out-dir /data/${NODE_NAME}/${KEYS_SUBDIR}" }
+script.pre = "mkdir -p ${BASE_DIR}/${NODE_NAME}/${KEYS_SUBDIR}; cp ${PRIVATE_KEY_PATH} ${BASE_DIR}/${NODE_NAME}/keys/eth.sk"
+
+[tasks.subnet-fetch-genesis]
+extend = "fendermint-tool"
+env = { "CMD" = "genesis --genesis-file /data/genesis.json ipc from-parent --subnet-id ${SUBNET_ID} -p ${PARENT_ENDPOINT}  --parent-gateway ${PARENT_GATEWAY}  --parent-registry ${PARENT_REGISTRY} --base-fee ${BASE_FEE} --power-scale ${POWER_SCALE}" }
+
+[tasks.subnet-genesis-set-eam-permissions]
+extend = "fendermint-tool"
+script.pre = """
+#!/bin/bash
+if [[ ! -z ${EAM_ALLOWED_ADDR_LIST} ]]; then
+  echo "EAM_ALLOWED_ADDR_LIST=${EAM_ALLOWED_ADDR_LIST}"
+  CMD="genesis --genesis-file /data/genesis.json set-eam-permissions --mode allowlist --addresses ${EAM_ALLOWED_ADDR_LIST}"
+else
+  CMD="genesis --genesis-file /data/genesis.json set-eam-permissions --mode unrestricted"
+fi
+"""
+
+[tasks.node-report]
+script = """cat << EOF
+#################################
+#                               #
+# Subnet node ready! 🚀         #
+#                               #
+#################################
+
+Subnet ID:
+\t${SUBNET_ID}
+
+Eth API:
+\thttp://0.0.0.0:${ETHAPI_HOST_PORT}
+
+Chain ID:
+\t$(curl -s --location --request POST 'http://localhost:8545/' --header 'Content-Type: application/json' --data-raw '{ "jsonrpc":"2.0", "method":"eth_chainId", "params":[], "id":1 }' | jq -r '.result' | xargs printf "%d")
+
+Fendermint API:
+\thttp://localhost:26658
+
+CometBFT API:
+\thttp://0.0.0.0:${CMT_RPC_HOST_PORT}
+
+CometBFT node ID:
+\t$(docker exec ${CMT_CONTAINER_NAME} cometbft show-node-id)
+
+CometBFT P2P:
+\thttp://0.0.0.0:${CMT_P2P_HOST_PORT}
+
+IPLD Resolver Multiaddress:
+\t/ip4/0.0.0.0/tcp/${RESOLVER_HOST_PORT}/p2p/$(docker exec ${FM_CONTAINER_NAME} fendermint key show-peer-id --public-key /data/${NODE_NAME}/${NETWORK_PUB_KEY_PATH})
+EOF
+"""

@@ -1,0 +1,36 @@
+[package]
+name = "fendermint_rocksdb"
+description = "Implement the KVStore abstraction for RocksDB"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+num_cpus = "1.14"
+rocksdb = { version = "0.21", features = ["multi-threaded-cf"] }
+anyhow = { workspace = true }
+fendermint_storage = { path = "../storage", optional = true, features = ["testing"] }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+cid = { workspace = true, optional = true }
+fvm_ipld_blockstore = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+quickcheck = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+
+[features]
+default = ["lz4", "blockstore", "kvstore"]
+blockstore = ["fvm_ipld_blockstore", "cid"]
+kvstore = ["fendermint_storage"]
+
+lz4 = ["rocksdb/lz4"]
+# snappy = ["rocksdb/snappy"]
+# zlib = ["rocksdb/zlib"]
+# bzip2 = ["rocksdb/bzip2"]
+# zstd = ["rocksdb/zstd"]

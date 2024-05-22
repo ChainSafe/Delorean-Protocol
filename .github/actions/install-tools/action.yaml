@@ -1,0 +1,40 @@
+name: Install Tools
+description: "Install platform dependencies and tools"
+inputs:
+  repo-token:
+    description: "secrets.GITHUB_TOKEN"
+    required: true
+  rust:
+    description: "Rust toolchain name"
+    required: true
+
+runs:
+  using: "composite"
+
+  steps:
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        targets: wasm32-unknown-unknown
+        toolchain: ${{ inputs.rust }}
+        components: rustfmt,clippy
+
+    - name: Install Cargo Make
+      uses: davidB/rust-cargo-make@v1
+
+    # Protobuf compiler required by libp2p-core
+    - name: Install Protoc
+      uses: arduino/setup-protoc@v1
+      with:
+        repo-token: ${{ inputs.repo-token }}
+
+    # For compiling Solidity contracts
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1
+
+    - name: 'Install jq'
+      uses: dcarbone/install-jq-action@v2.1.0
+
+    # See https://github.com/docker/setup-buildx-action
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3

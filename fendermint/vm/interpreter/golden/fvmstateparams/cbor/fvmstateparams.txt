@@ -1,0 +1,1 @@
+FvmStateParams { state_root: Cid(bag6t76r5dyirmpk7uqfbk3r4v3446rpxg3hjtnbkx3peymwm7hkq7eaysy), timestamp: Timestamp(1472379715227375035), network_version: NetworkVersion(21), base_fee: TokenAmount(257079523536971773801.541083398290518852), circ_supply: TokenAmount(335706089450661601774.571585084053688157), chain_id: 3213905584145883, power_scale: 0, app_version: 1 }

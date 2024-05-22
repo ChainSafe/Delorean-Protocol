@@ -1,0 +1,37 @@
+# .github/workflows/prettier.yml
+name: Prettier
+
+# This workflow is triggered from the main CI workflow.
+on:
+  workflow_call:
+
+jobs:
+  prettier:
+    runs-on: ubuntu-latest
+    permissions:
+      # Give the default GITHUB_TOKEN write permission to commit and push the
+      # added or changed files to the repository.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Set up node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '21'
+      - name: Run formatter
+        run: cd contracts && make fmt
+      - name: Check diff clean
+        run: |
+          cd contracts
+          git restore package-lock.json
+          git status
+          git diff --name-only
+          git --no-pager diff --quiet
+
+#      - name: Commit changes
+#        uses: stefanzweifel/git-auto-commit-action@v5
+#        with:
+#          commit_message: Apply Prettier formatting
+#          branch: ${{ github.head_ref }}

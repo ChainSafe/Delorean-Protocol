@@ -1,0 +1,48 @@
+[package]
+name = "fendermint_vm_actor_interface"
+description = "Re-export interfaces of built-in actors, either copied versions or from direct project reference."
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+ethers = { workspace = true }
+hex = { workspace = true }
+lazy_static = { workspace = true }
+paste = { workspace = true }
+serde = { workspace = true }
+serde_tuple = { workspace = true }
+tracing = { workspace = true }
+multihash = { workspace = true }
+
+cid = { workspace = true }
+fvm_shared = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+fvm_ipld_hamt = { workspace = true }
+fvm_ipld_blockstore = { workspace = true }
+
+fil_actors_evm_shared = { workspace = true }
+ipc_actors_abis = { workspace = true }
+ipc-api = { workspace = true }
+
+# The following is disabled so its dependency on an earlier version of fvm_shared doesn't
+# stop us from using the latest version of the FVM. It can be re-enabled if there are more
+# hardcoded method hashes than what we care to maintain, but currently there is only one.
+# frc42_dispatch = { workspace = true }
+
+merkle-tree-rs = { path = "../../../ext/merkle-tree-rs" }
+
+fendermint_vm_genesis = { path = "../genesis" }
+fendermint_crypto = { path = "../../crypto" }
+
+[dev-dependencies]
+ethers-core = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+rand = { workspace = true }
+
+fendermint_vm_genesis = { path = "../genesis", features = ["arb"] }

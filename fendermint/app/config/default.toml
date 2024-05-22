@@ -1,0 +1,257 @@
+# All file and directory paths can be either:
+# * an absolute path, starting with "/", e.g. "/foo/bar"
+# * a path relative to the system `$HOME` directory, starting with "~", e.g. "~/foo/bar"
+# * a path relative to the `--home-dir` directory passed to the CLI, e.g. "foo/bar"
+
+# Database files.
+data_dir = "data"
+# State snapshots.
+snapshots_dir = "snapshots"
+# Solidity contracts.
+contracts_dir = "contracts"
+# Builtin actor bundle CAR file.
+builtin_actors_bundle = "bundle.car"
+# Custom actor bundle CAR file.
+custom_actors_bundle = "custom_actors_bundle.car"
+# Where to reach CometBFT for queries or broadcasting transactions.
+tendermint_rpc_url = "http://127.0.0.1:26657"
+# Block height where we should gracefully stop the node to perform maintenance or
+# with planning for an upcoming coordinated upgrade. Set to 0 to never halt.
+halt_height = 0
+
+# Secp256k1 private key used for signing transactions. Leave empty if not validating,
+# or if it's not needed to sign and broadcast transactions as a validator.
+# Leaving empty by default so single node deployments don't fail to start because
+# this key is not copied into place.
+# [validator_key]
+# # Path to the secret key file in base64 format.
+# path =
+
+# # The on-chain account kind (regular|ethereum)
+# kind =
+
+[abci]
+# Number of concurrent requests allowed to be _submitted_ to the application.
+# Because message handling is asynhronous, this doesn't make any difference
+# in practice, because they will be executed concurrently, unless affected
+# by Tower layers applied in the application root.
+bound = 1
+# Maximum number of messages allowed in a block, which also affects the
+# buffer size applied on the consensus service. It is important to keep
+# those in-sync to avoid potential deadlocks with message handling in Tower.
+block_max_msgs = 1000
+
+[abci.listen]
+# Only accept connections from Tendermint, assumed to be running locally.
+host = "127.0.0.1"
+# The default port where Tendermint is going to connect to the application.
+port = 26658
+
+[db]
+# Keep unlimited history by default.
+state_hist_size = 0
+# RocksDB compaction style - 'level' is supposed to be good when most keys don't get updated.
+compaction_style = "level"
+
+[metrics]
+# Enable the export of metrics over HTTP.
+enabled = true
+
+[metrics.listen]
+# Only accept connections from a Prometheus scraper, assumed to be running locally.
+host = "127.0.0.1"
+# The default port where the Prometheus exporter makes the metrics available.
+port = 9184
+
+[snapshots]
+# Enable the export and import of snapshots.
+enabled = false
+# How often to attempt to export snapshots in terms of block height.
+# With 1-2s block time, we can aim for 8h snapshots and cover the last 24h keeping the last 3.
+# The Filecoin Calibration net does not allow longer lookups than 16h, so we should have a snapshot within that time.
+block_interval = 30000
+# Number of snapshots to keep before purging old ones.
+# Keep the last 2-3 snapshots around as recommended by CometBFT docs.
+hist_size = 3
+# Target chunk size, in bytes.
+# It has to be less than 16MB and the FVM has max 1MB blocks, so 10MB as recommended by CometBFT docs is a good start.
+chunk_size_bytes = 10485760
+# How long to keep a snapshot from being purged after it has been requested by a peer.
+last_access_hold = 300
+# Ask CometBFT every now and then whether it's syncing; snapshot production is skipped
+sync_poll_interval = 60
+
+[broadcast]
+# Maximum number of times to retry broadcasting a transaction after failure.
+max_retries = 5
+# Tome to wait between retries, in seconds. It should roughly correspond to the block interval.
+retry_delay = 2
+# Any over-estimation to apply on top of the estimate returned by the API.
+gas_overestimation_rate = 2
+
+# FVM configuration
+[fvm]
+# Overestimation rate applied to gas estimations to ensure that the
+# message goes through
+gas_overestimation_rate = 1.25
+# Gas search step increase used to find the optimal gas limit.
+# It determines how fine-grained we want the gas estimation to be.
+gas_search_step = 1.25
+# Indicate whether transactions should be fully executed during the checks performed
+# when they are added to the mempool, or just the most basic ones are performed.
+#
+# Enabling this option is required to fully support "pending" queries in the Ethereum API,
+# otherwise only the nonces and balances are projected into a partial state.
+exec_in_check = true
+
+# Gas fee used when broadcasting transactions.
+# TODO: Configure a value once validators are charged for the "miner penalty".
+gas_fee_cap = 0
+# Gas premium used when broadcasting transactions.
+gas_premium = 0
+
+# Ethereum API facade
+[eth]
+# Maximum time allowed between polls for filter changes, in seconds, before the subscription is canceled.
+filter_timeout = 300
+# Maximum number of entries in the LRU caches.
+cache_capacity = 1000000
+# How far ahead the nonce of submitted transactions can be for the API facade to buffer them
+# and re-submit when they become unblocked by another transaction included on the chain.
+# 0 means the buffering in the facade is disabled.
+max_nonce_gap = 10
+
+[eth.gas]
+# Minimum gas premium returned by the API in `eth_maxPriorityFeePerGas`, in atto.
+min_gas_premium = 100000
+# Number of blocks used for the computation of the premium in `eth_maxPriorityFeePerGas`
+# Default: Lotus uses only 2 epochs to compupte the premium, but they compute the
+# median over (on average) 10 blocks, 5 per epoch.
+num_blocks_max_prio_fee = 10
+# Maximum size of the histogram for `eth_feeHistory`
+max_fee_hist_size = 1024
+
+[eth.listen]
+# Only accept local connections by default.
+host = "127.0.0.1"
+# The default port where the Ethereum API will listen to
+# JSON-RPC (POST) and WebSockets (GET) requests.
+port = 8545
+
+
+# IPLD Resolver Configuration
+[resolver]
+# Time to wait between attempts to resolve a CID after an error.
+retry_delay = 10
+
+# Network Identity
+[resolver.network]
+# Secp256k1 private key used for signing network messages.
+local_key = "keys/network.sk"
+
+# Network name is used to differentiate the IPLD Resolver peer group.
+# The entire hierarchy should be in one peer group connected by GossipSub,
+# so we can derive a name using the rootnet ID and use this as an override.
+network_name = ""
+
+
+# Peer Discovery
+[resolver.discovery]
+# Bootstrap node addresses for peer discovery, or the entire list for a static network
+# if peer discovery is disabled. The addresses must end with a `/p2p/<peer-id>` part.
+# If there are no static addresses to connect to, this node can still act as a bootstrap
+# node for others, but if Kademlia is also disabled, then it will never find peers.
+static_addresses = []
+
+# Number of connections at which point we pause further discovery lookups.
+target_connections = 50
+
+# Option to disable Kademlia, for example in a fixed static network.
+enable_kademlia = true
+
+
+# IPC Subnet Membership
+[resolver.membership]
+# User defined list of subnets which will never be pruned from the cache.
+static_subnets = []
+
+# Maximum number of subnets to track in the cache.
+# This is set to avoid filling the memory with non-existing subnet adverts from malicious peers.
+max_subnets = 100
+
+# Publish interval for supported subnets, in seconds.
+# This is how often the node will announce to others which subnets it is able to serve data for.
+publish_interval = 60
+
+# Minimum time between publishing own provider record in reaction to new joiners, in seconds.
+# This is to avoid bursts of messages after new joiners arrive.
+min_time_between_publish = 5
+
+# Maximum age of provider records before the peer is removed without an update, in seconds.
+max_provider_age = 300
+
+# Network Connectivity
+[resolver.connection]
+# The address where we will listen to incoming connections.
+# Leaving it empty disables the IPLD Resolver.
+listen_addr = ""
+
+# A list of known external addresses this node is reachable on.
+# If left empty we rely on the `libp2p::Swarm` and the `Identity` protocol to discover it
+# automatically as it's reported back to us from peers, although this might not work sufficiently.
+external_addresses = []
+
+# Maximum number of incoming connections.
+max_incoming = 30
+
+# Expected number of peers, for sizing the Bloom filter.
+expected_peer_count = 10000
+
+# Maximum number of peers to send Bitswap requests to in a single attempt.
+max_peers_per_query = 5
+
+# Maximum number of events in the push-based broadcast channel before a slow
+# consumer gets an error because it's falling behind.
+event_buffer_capacity = 100
+
+
+# Serving Content
+[resolver.content]
+# Number of bytes that can be consumed by remote peers in a time period. 0 means no limit.
+rate_limit_bytes = 0
+# Length of the time period at which the consumption limit fills. 0 means no limit.
+rate_limit_period = 0
+
+# IPC related configuration parameters
+[ipc]
+# Default subnet ID, which basically means IPC is disabled.
+subnet_id = "/r0"
+# Voting interval about things such as the top-down finality, in seconds.
+# It's limited to avoid GossipSub throttling or banning the node for over production.
+# The minimum is 1 seconds which is about the minimum target block time as well;
+# ideally one round of gossip per block should be as frequent as we would go.
+vote_interval = 1
+# Voting timeout about top-down finality, in seconds. After this time, if there is
+# no new height to vote on, the previous vote is re-published. This is to avoid
+# potential stalling because peers missed an important vote and the cache is full,
+# pausing the syncer, preventing new events to trigger votes.
+vote_timeout = 60
+
+
+# # Setting which are only allowed if the `--network` CLI parameter is `testnet`.
+# [testing]
+
+# # Indicate whether the chain metadata should be pushed into the ledger.
+# #
+# # Doing so causes the ledger to chain even on empty blocks, which will
+# # cause another empty block to be created by CometBFT, perpetuating
+# # it even if we don't want them.
+# #
+# # This is here for testing purposes only, it should be `true` by default to allow
+# # the `evm` actor to execute the `BLOCKHASH` function. If you want to disable
+# # empty blocks created by CometBFT, for a less frenetic testing experience,
+# # then you need to disable this as well, with the side effect that `BLOCKHASH`
+# # will always return an empty value.
+# #
+# # See https://docs.cometbft.com/v0.37/core/configuration#empty-blocks-vs-no-empty-blocks
+# push_chain_meta = true

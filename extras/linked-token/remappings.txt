@@ -1,0 +1,9 @@
+ds-test/=lib/forge-std/lib/ds-test/src/
+forge-std/=lib/forge-std/src/
+openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/
+fevmate/=../../contracts/lib/fevmate/contracts/
+@ipc/=../../contracts/
+elliptic-curve-solidity/=../../contracts/lib/elliptic-curve-solidity/
+murky/=../../contracts/lib/murky/src
+@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
+

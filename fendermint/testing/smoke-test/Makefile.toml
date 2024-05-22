@@ -1,0 +1,71 @@
+# smoke-test infrastructure:
+# cargo install cargo-make
+#
+# cd fendermint/testing/smoke-test
+# - then -
+# cargo make --profile ci
+# - or -
+# cargo make setup
+# cargo make test
+# docker logs smoke-ethapi
+# cargo make teardown
+
+extend = [{ path = "../scripts/common.toml" }]
+
+env_files = [
+  { path = "./scripts/smoke.env" },
+  { path = "../scripts/common.env" },
+  { path = "../scripts/ci.env", profile = "ci" },
+]
+
+[tasks.test-data-env]
+script = """
+cat << EOF > ${TEST_DATA_DIR}/.env
+CMT_P2P_MAX_NUM_OUTBOUND_PEERS=0
+CMT_CONSENSUS_TIMEOUT_COMMIT=1s
+EOF
+"""
+
+[tasks.test]
+clear = true
+dependencies = [
+  "simplecoin-example",
+  "transfer-example",
+  "ethers-example",
+  "query-blockhash-example",
+]
+
+
+[tasks.simplecoin-example]
+script = """
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint
+cargo run -p fendermint_rpc --example simplecoin -- \
+  --secret-key testing/smoke-test/test-data/keys/alice.sk \
+  ${VERBOSITY}
+"""
+
+
+[tasks.transfer-example]
+script = """
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint
+cargo run -p fendermint_rpc --example transfer -- \
+  --secret-key testing/smoke-test/test-data/keys/eric.sk \
+  ${VERBOSITY}
+"""
+
+
+[tasks.ethers-example]
+script = """
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint
+cargo run -p fendermint_eth_api --example ethers -- \
+  --secret-key-from testing/smoke-test/test-data/keys/emily.sk \
+  --secret-key-to   testing/smoke-test/test-data/keys/eric.sk
+"""
+
+[tasks.query-blockhash-example]
+script = """
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint
+cargo run -p fendermint_eth_api --example query_blockhash -- \
+   --secret-key testing/smoke-test/test-data/keys/emily.sk \
+  ${VERBOSITY}
+"""

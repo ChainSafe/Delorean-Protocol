@@ -1,0 +1,46 @@
+[package]
+name = "fendermint_contract_test"
+description = "Model based testing for smart contracts"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+cid = { workspace = true }
+ethers = { workspace = true }
+fvm = { workspace = true }
+fvm_shared = { workspace = true }
+fvm_ipld_blockstore = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+tendermint-rpc = { workspace = true }
+tokio = { workspace = true }
+byteorder = { workspace = true }
+
+ipc-api = { workspace = true }
+ipc_actors_abis = { workspace = true }
+
+fendermint_testing = { path = "..", features = ["smt", "arb"] }
+fendermint_crypto = { path = "../../crypto" }
+fendermint_vm_actor_interface = { path = "../../vm/actor_interface" }
+fendermint_vm_core = { path = "../../vm/core" }
+fendermint_vm_genesis = { path = "../../vm/genesis" }
+fendermint_vm_message = { path = "../../vm/message" }
+fendermint_vm_interpreter = { path = "../../vm/interpreter", features = [
+    "bundle",
+] }
+
+[dev-dependencies]
+arbitrary = { workspace = true }
+arbtest = { workspace = true }
+async-trait = { workspace = true }
+rand = { workspace = true }
+fendermint_rpc = { path = "../../rpc" }
+lazy_static = { workspace = true }
+bytes = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+multihash = { workspace = true }

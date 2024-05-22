@@ -1,0 +1,72 @@
+accounts:
+  alice: {}
+  bob: {}
+  charlie: {}
+
+rootnet:
+  type: New
+  # Balances and collateral are in atto
+  validators:
+    alice: '100'
+  balances:
+    # 100FIL is 100_000_000_000_000_000_000
+    alice: '100000000000000000000'
+    bob: '200000000000000000000'
+    charlie: '300000000000000000000'
+  env:
+    CMT_CONSENSUS_TIMEOUT_COMMIT: 2s
+    FM_LOG_LEVEL: info,fendermint=debug
+
+  nodes:
+    brussels:
+      mode:
+        type: Validator
+        validator: alice
+      seed_nodes: []
+      ethapi: true
+
+subnets:
+  england:
+    creator: bob
+    # Minimum collateral is 1 nanoFIL, which is 1_000_000_000 atto
+    validators:
+      charlie: '1000000000'
+      bob:     '2000000000'
+    # Submitting a signature for a checkpoint says it needs 0.059552996FIL
+    balances:
+      bob:     '20000000000000000000'
+      charlie: '30000000000000000000'
+    bottom_up_checkpoint:
+      period: 100
+    env:
+      FM_LOG_LEVEL: info,fendermint=debug
+      # Enable debug log on the relayers
+      RUST_LOG: debug
+
+    relayers:
+      euston:
+        submitter: bob
+        follow_node: london
+        submit_node: brussels
+
+      piccadilly:
+        submitter: alice
+        follow_node: manchester
+        submit_node: brussels
+
+    nodes:
+      london:
+        mode:
+          type: Validator
+          validator: charlie
+        parent_node: brussels
+        seed_nodes: []
+        ethapi: true
+
+      manchester:
+        mode:
+          type: Validator
+          validator: bob
+        parent_node: brussels
+        seed_nodes: [london]
+        ethapi: true

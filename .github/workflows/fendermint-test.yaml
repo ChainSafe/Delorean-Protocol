@@ -1,0 +1,113 @@
+name: Fendermint CI - Test
+
+# This workflow is triggered from the main CI workflow.
+on:
+  workflow_call:
+
+env:
+  CARGO_INCREMENTAL: '0'
+  SCCACHE_CACHE_SIZE: 10G
+  CC: "sccache clang"
+  CXX: "sccache clang++"
+  PROFILE: "ci"
+  BUILDX_FLAGS: "--cache-from=type=gha --cache-to=type=gha,mode=max"
+
+jobs:
+  # Check code formatting; anything that doesn't require compilation.
+  pre-compile-checks:
+    name: Pre-compile checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt
+
+      - name: Check code formatting
+        run: cd fendermint && make check-fmt
+
+
+  # Test matrix, running tasks from the Makefile.
+  tests:
+    # Skip tests on draft PRs, they take a long time, and drafts are for visibility.
+    if: ${{ !github.event.pull_request.draft }}
+    needs: [pre-compile-checks]
+    name: ${{ matrix.make.name }} (${{ matrix.os }}, ${{ matrix.rust }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        rust: [stable]
+        make:
+          - name: Clippy
+            task: check-clippy
+          # Technically it's not necessary to build, testing would be fine on its own.
+          # However, tests bring in dev-dependencies, and without them something might not compile,
+          # which we want to catch as it would mean the `cargo build` in the docs would fail.
+          # Doing it a one step so build artifacts can be reused by the tests, minimising the overhead.
+          - name: Build and Test
+            task: build test
+          # Tests that involve docker.
+          - name: End-to-End
+            task: e2e
+        exclude:
+          # Not running Clippy on nightly because sometimes it seems to give false positives.
+          - rust: nightly
+            make:
+              name: Clippy
+          - rust: nightly
+            make:
+              name: End-to-end
+
+    env:
+      RUST_BACKTRACE: full
+      RUSTFLAGS: -Dwarnings
+
+    steps:
+      # https://github.com/marketplace/actions/free-disk-space-ubuntu
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          large-packages: false
+          swap-storage: false
+          docker-images: false
+          android: true
+          dotnet: true
+          haskell: true
+
+      - name: Check out the project
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Tools
+        uses: ./.github/actions/install-tools
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          rust: ${{ matrix.rust }}
+
+      - name: Setup Cache
+        uses: ./.github/actions/setup-cache
+        timeout-minutes: 5
+        continue-on-error: true
+        with:
+          # Caching everything separately, in case they don't ask for the same things to be compiled.
+          cache-prefix: fendermint-${{ matrix.make.name }}-${{ matrix.os }}-${{ matrix.rust }}-${{ hashFiles('rust-toolchain', 'rust-toolchain.toml') }}
+          cache-suffix: ${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache Solidity ABI artifacts
+        uses: actions/cache@v2
+        with:
+          path: ./contracts/out
+          key: contracts-abi-${{ hashFiles('./contracts/src/**/*.sol') }}
+
+      - name: ${{ matrix.make.name }}
+        env:
+          PROMTAIL_CLIENT_URL: ${{ secrets.PROMTAIL_CLIENT_URL }}
+        run: cd fendermint && make ${{ matrix.make.task }}

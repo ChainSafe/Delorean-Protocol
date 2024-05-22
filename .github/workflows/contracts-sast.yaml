@@ -1,0 +1,83 @@
+name: Static analysis
+
+# This workflow is triggered from the main CI workflow.
+on:
+  workflow_call:
+
+jobs:
+  slither:
+    name: Slither check
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Run Slither
+        uses: crytic/slither-action@v0.3.0
+        with:
+          fail-on: low
+
+  aderyn:
+    name: Aderyn check
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      # We remove this file because Aderyn can choose hardhat for compilation if that config file exists.
+      # Currently, it is not possible to configure Aderyn to use foundry by default.
+      - name: delete hardhat config
+        run: cd contracts && rm -rf ./hardhat.config.ts
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          cache: false
+
+      - name: Install aderyn
+        run: cargo install aderyn
+
+      - name: Run aderyn
+        run: cd contracts && aderyn ./ -o report.json
+
+      - name: Check results
+        run: cd contracts && ./tools/check_aderyn.sh
+
+  solhint:
+    name: Solhint check
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node 16
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+          cache-dependency-path: 'contracts/package-lock.json'
+      - name: Install Node dependencies
+        run: cd contracts && npm i --unsafe-perm
+      - name: Install solidity plugin
+        run: cd contracts && npm i --unsafe-perm prettier prettier-plugin-solidity
+      - name: Prettier check
+        run: cd contracts && npx prettier --check 'src/**/*.sol' 'test/*.sol'
+      - name: Solhint check
+        run: cd contracts && npx solhint 'src/**/*.sol'
+
+  codespell:
+    name: Codespell check
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: CodeSpell check
+        uses: codespell-project/actions-codespell@v2.0
+        with:
+          check_hidden: true
+          check_filenames: true
+          path: contracts/src/*,contracts/script/*,contracts/scripts/*,contracts/test/*
+          ignore_words_file: contracts/.codespellignore

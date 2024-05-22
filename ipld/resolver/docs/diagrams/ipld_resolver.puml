@@ -1,0 +1,100 @@
+@startuml IPLD Resolver
+actor Host
+boundary Client
+control Service
+database SubnetProvidersCache
+database BitswapStore
+participant "Content (Bitswap)" as Content
+participant "Membership (Gossipsub)" as Membership
+participant "Discovery (Kademlia)" as Discovery
+participant Identify
+boundary Remote
+
+
+Host -> Service ++: new
+Service -> Identify: create
+Service -> Discovery: create
+Service -> Membership: create
+Service -> Content: create
+return (Service, Client)
+
+Host -> Service ++: run
+
+== Bootstrapping ==
+
+Membership -> Remote: subscribe to membership topic
+Service -> Discovery ++: bootstrap from seed peers
+Discovery -> Remote: find neighbours
+Remote -> Discovery: peer addresses
+
+Discovery -> Discovery: add address
+Discovery -> Service ++: peer routable
+Service -> Membership --: peer routable
+
+Host -> Client ++: set provided subnets
+Client -> Service --++: set provided subnets
+Service -> Membership --++: set provided subnets
+Membership -> Remote --: publish subnets to membership topic
+
+Discovery -> Service --: bootstrap finished
+
+Remote -> Identify: listening address
+Identify -> Service ++: listening address
+Service -> Discovery ++: add address
+Discovery -> Service --: peer routable
+Service -> Membership --: peer routable
+
+== Gossiping ==
+
+loop
+  alt publish interval tick
+    Membership -> Remote: publish SignedProviderRecord
+    Membership -> SubnetProvidersCache: prune expired records
+  else
+    Remote -> Membership ++: SignedProviderRecord
+    alt if peer routable
+      Membership -> SubnetProvidersCache --: add provider
+    end
+  end
+end
+
+== Resolution ==
+
+Host -> Client ++: resolve CID from subnet
+Client -> Service ++: resolve CID from subnet
+Service -> Membership: get providers of subnet
+Service -> Service: prioritize peers, connected first
+loop
+  Service -> Content ++: resolve CID from first N peers
+  Content -> BitswapStore: get missing blocks of root CID
+  loop while has missing CID
+    loop for each peer
+      Content -> Remote: want-have CID
+      Remote -> Content: have-block true/false
+      note left
+        Gather peers who can be asked.
+      end note
+    end
+    loop until have block or no more peers to try
+      Content -> Remote: want-block CID
+      alt block is received
+        Remote -> Content: block
+        Content -> BitswapStore: insert block
+        Content -> BitswapStore: get missing blocks of retrieved CID
+      end
+    end
+  end
+  Content -> Service --: resolution result
+  alt if failed to resolve but has fallback peers
+    Service -> Service: pick next N peers
+  else
+    Service -> Client --: resolution result
+  end
+end
+Client -> Host --: resolution result
+
+alt if succeeded
+  Host -> BitswapStore: retrieve content by CID
+end
+
+@enduml

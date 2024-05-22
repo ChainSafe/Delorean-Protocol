@@ -1,0 +1,26 @@
+specVersion: 0.0.4
+description: Graph for Greeter contracts
+repository: https://github.com/hashgraph/hedera-subgraph-example
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: Greeter
+    network: testnet
+    source:
+      address: '{{address}}'
+      abi: IGreeter
+      startBlock: {{deploy_height}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - Greeting
+      abis:
+        - name: IGreeter
+          file: ./abis/IGreeter.json
+      eventHandlers:
+        - event: GreetingSet(string)
+          handler: handleGreetingSet
+      file: ./src/mappings.ts

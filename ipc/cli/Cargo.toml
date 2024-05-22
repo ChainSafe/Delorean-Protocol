@@ -1,0 +1,48 @@
+[package]
+name = "ipc-cli"
+version = "0.1.0"
+edition.workspace = true
+license-file.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+async-channel = { workspace = true }
+async-trait = { workspace = true }
+base64 = { workspace = true }
+bytes = "1.4.0"
+cid = { workspace = true }
+clap = { version = "4.1.4", features = ["env", "derive"] }
+clap_complete = "4.2.1"
+env_logger = "0.10.0"
+ethers = { workspace = true }
+ethers-contract = { workspace = true }
+fil_actors_runtime = { workspace = true }
+futures-util = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+fvm_shared = { workspace = true }
+hex = { workspace = true }
+libsecp256k1 = { workspace = true }
+log = { workspace = true }
+num-derive = "0.3.3"
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
+openssl = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_bytes = "0.11.9"
+serde_json = { workspace = true }
+serde_tuple = { workspace = true }
+strum = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+toml = "0.7.2"
+url = { workspace = true }
+zeroize = "1.6.0"
+
+ipc-wallet = { workspace = true }
+ipc-provider = { workspace = true }
+ipc-api = { workspace = true }
+ipc-types = { workspace = true }

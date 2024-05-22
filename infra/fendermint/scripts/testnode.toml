@@ -1,0 +1,111 @@
+########################################################################################################################
+# Testnode
+########################################################################################################################
+[tasks.testnode]
+workspace = false
+dependencies = [
+    "create-log-volume",
+    "testnode-down",
+    "fendermint-pull",
+    "testnode-init",
+    "docker-network-create",
+    "cometbft-init",
+    "fendermint-deps",
+    "testnode-config",
+    "fendermint-start",
+    "cometbft-start",
+    "cometbft-wait",
+    "promtail-start",
+    "ethapi-start",
+    "testnode-report",
+]
+
+[tasks.testnode-init]
+dependencies = [
+    "node-clear",
+    "node-mkdir",
+]
+
+[tasks.testnode-clear]
+script = """
+echo clearing all IPC data
+rm -rf ${BASE_DIR}
+"""
+
+[tasks.testnode-mkdir]
+script = """
+echo creating directories: $BASE_DIR $FM_DIR $CMT_DIR
+mkdir -p $BASE_DIR
+mkdir -p $FM_DIR
+
+mkdir -p $CMT_DIR
+"""
+
+[tasks.testnode-restart]
+run_task = { name = [
+    "cometbft-stop",
+    "fendermint-stop",
+    "ethapi-stop",
+    "fendermint-start",
+    "cometbft-start",
+    "cometbft-wait",
+    "ethapi-start",
+] }
+
+[tasks.testnode-down]
+# `dependencies` doesn't seem to work with `cleanup_task`.
+run_task = { name = [
+    "cometbft-destroy",
+    "fendermint-destroy",
+    "ethapi-destroy",
+    "docker-network-rm",
+    "destroy-log-volume",
+] }
+
+# This task create all necessary data structures to run Fendermint:
+# the genesis file with necessary entities and cryptographic keys.
+[tasks.testnode-config]
+dependencies = [
+    "genesis-new",
+    "genesis-new-key",
+    "genesis-new-accounts",
+    "genesis-add-validator",
+    "genesis-new-gateway",
+    "genesis-write",
+    "testnode-export-keys",
+]
+
+[tasks.testnode-export-keys]
+extend = "fendermint-tool"
+env = { "CMD" = "key into-tendermint --secret-key /data/${NODE_NAME}/${VALIDATOR_PRIV_KEY_PATH} --out /data/${NODE_NAME}/${COMETBFT_SUBDIR}/config/priv_validator_key.json" }
+script.post = "chmod 600 ${BASE_DIR}/${NODE_NAME}/${COMETBFT_SUBDIR}/config/priv_validator_key.json"
+
+[tasks.testnode-report]
+script = """cat << EOF
+############################
+#                          #
+# Testnode ready! 🚀       #
+#                          #
+############################
+
+Eth API:
+\thttp://0.0.0.0:8545
+
+Accounts:
+$(jq -r '.accounts[] | "\t\\(.meta.Account.owner): \\(.balance) coin units"' ${BASE_DIR}/genesis.json)
+
+Private key (hex ready to import in MetaMask):
+\t$(cat ${BASE_DIR}/${NODE_NAME}/${VALIDATOR_PRIV_KEY_PATH} | base64 -d | xxd -p -c 1000000)
+
+Note: both accounts use the same private key @ ${BASE_DIR}/${VALIDATOR_PRIV_KEY_PATH}
+
+Chain ID:
+\t$(curl -s --location --request POST 'http://localhost:8545/' --header 'Content-Type: application/json' --data-raw '{ "jsonrpc":"2.0", "method":"eth_chainId", "params":[], "id":1 }' | jq -r '.result' | xargs printf "%d")
+
+Fendermint API:
+\thttp://localhost:26658
+
+CometBFT API:
+\thttp://0.0.0.0:26657
+EOF
+"""

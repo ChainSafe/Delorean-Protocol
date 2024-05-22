@@ -1,0 +1,197 @@
+# See fendermint/testing/snapshot-test/src/lib.rs for description.
+
+extend = [
+  { path = "../scripts/common.toml" },
+]
+
+env_files = [
+  # `snapshot.env` is the environment for `cargo make`.
+  { path = "./scripts/snapshot.env" },
+  { path = "../scripts/common.env" },
+  { path = "../scripts/ci.env", profile = "ci" },
+]
+
+# Overriding the env file to enable snapshotting.
+# This one is applied on every *container*.
+# The other env files are for `cargo make` itself,
+# the values are only available inside TOML files.
+# Disabling PEX so nodes only connect to what they are told about.
+[tasks.test-data-env]
+script = """
+cat << EOF > ${TEST_DATA_DIR}/.env
+FM_SNAPSHOTS__ENABLED=true
+FM_SNAPSHOTS__BLOCK_INTERVAL=10
+FM_SNAPSHOTS__HIST_SIZE=10
+FM_SNAPSHOTS__CHUNK_SIZE_BYTES=1048576
+FM_SNAPSHOTS__SYNC_POLL_INTERVAL=10
+CMT_P2P_PEX=false
+CMT_P2P_MAX_NUM_OUTBOUND_PEERS=3
+CMT_CONSENSUS_TIMEOUT_COMMIT=1s
+EOF
+"""
+
+# This is the test workflow
+[tasks.test]
+clear = true
+run_task = { name = [
+  "node-1-setup",
+  "node-1-sync-test",
+  "node-2-setup",
+  "node-2-sync-test",
+  "snapshot-wait",
+  "snapshot-created",
+  "node-3-setup",
+  "node-3-sync-test",
+], fork = true, cleanup_task = "snapshot-teardown" }
+
+# Wait enough time that some snapshots should be exported.
+[tasks.snapshot-wait]
+extend = "wait"
+env = { "CARGO_MAKE_WAIT_MILLISECONDS" = "15000" }
+
+# Check that some snapshots are being produced.
+[tasks.snapshot-created]
+script = """
+FM_SNAPSHOTS_DIR=${TEST_DATA_DIR}/${NODE_NAME}/fendermint/snapshots
+if [ -z "$(ls -A $FM_SNAPSOTS_DIR)" ]; then
+   echo "ERROR: No snapshots created at $FM_SNAPSHOTS_DIR"
+   exit 1
+fi
+"""
+
+# Shut down all non-default nodes.
+[tasks.snapshot-teardown]
+run_task = { name = [
+  "node-1-teardown",
+  "node-2-teardown",
+  "node-3-teardown",
+] }
+
+
+# ### General tasks for node-1 and node-2
+
+[tasks.node-setup]
+# Export node-0 ID.
+dependencies = ["cometbft-export-node-id"]
+run_task = { name = [
+  "test-node-dir",
+  "node-env",
+  "cometbft-init",
+  "node-set-seed",
+  "node-copy-genesis",
+  "fendermint-start",
+  "cometbft-start",
+  "cometbft-wait",
+  "cometbft-export-node-id",
+  "fendermint-logs",
+  "cometbft-logs",
+] }
+
+# Set the persistent peer address to that of the default node-0.
+[tasks.node-set-seed]
+script = """
+CMT_SEED_ID=$(cat $BASE_DIR/$SEED_NODE_NAME/node-id)
+CMT_P2P_PERSISTENT_PEERS=$CMT_SEED_ID@$SEED_CMT_CONTAINER_NAME:26656
+sed -i'' -e "s|persistent_peers = \\"\\"|persistent_peers = \\"$CMT_P2P_PERSISTENT_PEERS\\"|" $BASE_DIR/${NODE_NAME}/cometbft/config/config.toml
+"""
+
+# Get the genesis from node-0
+[tasks.node-copy-genesis]
+script = """
+cp $BASE_DIR/${SEED_NODE_NAME}/cometbft/config/genesis.json \
+   $BASE_DIR/${NODE_NAME}/cometbft/config/genesis.json
+"""
+
+[tasks.node-teardown]
+run_task = { name = [
+  "cometbft-destroy",
+  "fendermint-destroy",
+  "test-node-dir-rm",
+] }
+
+# See if it managed to sync.
+[tasks.node-sync-test]
+script = """
+EARLIEST=$(curl -s localhost:${CMT_RPC_HOST_PORT}/status | jq -r ".result.sync_info.earliest_block_height")
+LATEST=$(curl -s localhost:${CMT_RPC_HOST_PORT}/status | jq -r ".result.sync_info.latest_block_height")
+
+if [ "$EARLIEST" = "$LATEST" ]; then
+  echo "ERROR: The chain is not syncing!"
+  exit 1
+fi
+"""
+
+# Tell node-3 to statesync from node-1 and node-2
+# Setting the trusted height to 10 and fetching its block hash (which appears in the header @ 11),
+# so that it can do whatever it wants after that.
+# Tell node-1 and node-2 to prune their states so node-3 (who only knows aobut node-1) has no chance
+# but to use snapshots to sync itself.
+[tasks.node-env]
+script = """
+cat ${TEST_DATA_DIR}/.env > ${TEST_DATA_DIR}/${NODE_NAME}/.env
+
+cat << EOL >> ${TEST_DATA_DIR}/${NODE_NAME}/.env
+FM_DB__STATE_HIST_SIZE=100
+EOL
+
+if [ $NODE_NAME = "node-3" ]; then
+
+LATEST_HEIGHT=$(curl -s http://localhost:26657/commit | jq -r ".result.signed_header.header.height")
+TRUST_HEIGHT=$(($LATEST_HEIGHT-30))
+QUERY_HEIGHT=$(($TRUST_HEIGHT+1))
+TRUST_HASH=$(curl -s "http://localhost:26657/header?height=$QUERY_HEIGHT" | jq -r ".result.header.last_block_id.hash")
+
+cat << EOL >> ${TEST_DATA_DIR}/${NODE_NAME}/.env
+CMT_STATESYNC_ENABLE=true
+CMT_STATESYNC_RPC_SERVERS=http://snapshot-cometbft-1:26657,http://snapshot-cometbft-2:26657
+CMT_STATESYNC_TRUST_HEIGHT=$TRUST_HEIGHT
+CMT_STATESYNC_TRUST_HASH=$TRUST_HASH
+CMT_STATESYNC_TEMP_DIR=/cometbft
+CMT_STATESYNC_DISCOVERY_TIME=5s
+FM_SNAPSHOTS__DOWNLOAD_DIR=/data/${NODE_NAME}/fendermint/data
+EOL
+fi
+"""
+
+# ### node-1 tasks
+
+[tasks.node-1-setup]
+env_files = [{ path = "./scripts/node-1.env" }]
+extend = "node-setup"
+
+[tasks.node-1-teardown]
+env_files = [{ path = "./scripts/node-1.env" }]
+extend = "node-teardown"
+
+[tasks.node-1-sync-test]
+env_files = [{ path = "./scripts/node-1.env" }]
+extend = "node-sync-test"
+
+# ### node-2 tasks
+
+[tasks.node-2-setup]
+env_files = [{ path = "./scripts/node-2.env" }]
+extend = "node-setup"
+
+[tasks.node-2-teardown]
+env_files = [{ path = "./scripts/node-2.env" }]
+extend = "node-teardown"
+
+[tasks.node-2-sync-test]
+env_files = [{ path = "./scripts/node-2.env" }]
+extend = "node-sync-test"
+
+
+# ### node-3 tasks
+
+[tasks.node-3-setup]
+env_files = [{ path = "./scripts/node-3.env" }]
+extend = "node-setup"
+
+[tasks.node-3-teardown]
+env_files = [{ path = "./scripts/node-3.env" }]
+extend = "node-teardown"
+
+[tasks.node-3-sync-test]
+env_files = [{ path = "./scripts/node-3.env" }]
+extend = "node-sync-test"

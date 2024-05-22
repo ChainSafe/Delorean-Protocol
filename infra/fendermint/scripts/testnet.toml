@@ -1,0 +1,116 @@
+########################################################################################################################
+# Testnet
+########################################################################################################################
+[tasks.testnet]
+dependencies = ["testnet-down", "testnet-init", "fendermint-deps", "testnet-up"]
+
+[tasks.testnet-up]
+script = """
+if [ -z $GID ]; then GID=$(id -g); fi
+if [ -z $UID ]; then UID=$(id -u); fi
+export UID
+export GID
+export CMT_P2P_PERSISTENT_PEERS=`cat $BASE_DIR/peers`
+export SUBNET_ID=$SUBNET_ID
+export BASE_DIR=$BASE_DIR
+./run.sh start
+"""
+
+[tasks.testnet-down]
+script = """
+export CMT_P2P_PERSISTENT_PEERS="UNDEFINED"
+if [ -z $GID ]; then GID=$(id -g); fi
+if [ -z $UID ]; then UID=$(id -u); fi
+export UID
+export GID
+./run.sh stop
+"""
+
+[tasks.testnet-init]
+dependencies = [
+    "testnet-clear",
+    "fendermint-pull",
+    "docker-network-create",
+    "cometbft-pull",
+    "testnet-mkdir",
+    "genesis-new",
+    "testnet-init-nodes",
+    "genesis-write",
+    "testnet-copy-genesis",
+    "testnet-setup-persistent-peers",
+]
+
+[tasks.testnet-init-nodes]
+script_runner = "@duckscript"
+script = """
+nodes = range 0 4
+
+for i in ${nodes}
+    NUMBER = set ${i}
+    NODE_NAME = set "node${NUMBER}"
+
+    mkdir ${BASE_DIR}/${NODE_NAME}
+    mkdir ${BASE_DIR}/${NODE_NAME}/fendermint
+    mkdir ${BASE_DIR}/${NODE_NAME}/cometbft
+
+    set_env NODE_NAME ${NODE_NAME}
+    set_env NUMBER ${NUMBER}
+
+    cm_run_task testnet-cometbft-init
+    cm_run_task fendermint-new-network-key
+    cm_run_task genesis-new-key
+    cm_run_task genesis-new-accounts
+    cm_run_task genesis-add-validator
+
+    IP_LAST = calc ${NUMBER}+2
+    NETWORK_ADDR = set "192.167.10.${IP_LAST}:26656"
+    set_env NETWORK_ADDR ${NETWORK_ADDR}
+    cm_run_task testnet-add-peer
+
+    cm_run_task testnode-export-keys
+end
+
+release ${nodes}
+"""
+
+[tasks.testnet-clear]
+script = """
+echo clearing all IPC data
+rm -rf ${BASE_DIR}
+"""
+
+[tasks.testnet-mkdir]
+script = """
+mkdir -p ${BASE_DIR}
+touch ${ENV_FILE}
+"""
+
+[tasks.testnet-cometbft-init]
+extend = "cometbft-init"
+env = { "CMD" = "init", "NETWORK_NAME" = "${NETWORK_NAME}", "CMT_DIR" = "${BASE_DIR}/${NODE_NAME}/cometbft", "CMT_CONTAINER_NAME" = "cometbft-node${NUMBER}", "FLAGS" = "-a STDOUT -a STDERR --rm" }
+
+[tasks.testnet-add-peer]
+extend = "fendermint-tool"
+env = { "CMD" = """key add-peer \
+        --node-key-file /data/${NODE_NAME}/${COMETBFT_SUBDIR}/config/node_key.json \
+        --network-addr ${NETWORK_ADDR} \
+        --local-peers-file /data/peers \
+""" }
+
+[tasks.testnet-setup-persistent-peers]
+script = """
+unset CMT_P2P_PERSISTENT_PEERS
+export CMT_P2P_PERSISTENT_PEERS=`cat $BASE_DIR/peers`
+echo Persistent peers: $CMT_P2P_PERSISTENT_PEERS
+
+for i in $(seq 0 3); do
+    sed -i'' -e "s|persistent_peers = \\"\\"|persistent_peers = \\"$CMT_P2P_PERSISTENT_PEERS\\"|" $BASE_DIR/node${i}/cometbft/config/config.toml
+done
+"""
+
+[tasks.testnet-copy-genesis]
+script = """
+for i in $(seq 0 3); do
+    cp $BASE_DIR/genesis.committed.json $BASE_DIR/node${i}/cometbft/config/genesis.json
+done
+"""

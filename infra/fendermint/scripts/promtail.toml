@@ -1,0 +1,38 @@
+[tasks.create-log-volume]
+script = "docker volume create fendermint-logs"
+
+[tasks.destroy-log-volume]
+# removing the volume will return exit code 1 if it does not exist, which we can just ignore
+script = "docker volume rm fendermint-logs || true"
+
+
+[tasks.promtail-run]
+script = """
+unixtime=$(date +%s)
+echo "Starting promtail with promtailrunid: $unixtime"
+
+echo "promtail client url: ${PROMTAIL_CLIENT_URL}"
+
+docker run \
+  ${FLAGS} \
+  --name ${PROMTAIL_CONTAINER_NAME} \
+  --volume /var/run/docker.sock:/var/run/docker.sock \
+  --volume "$(readlink -f ../../../infra/promtail)/:/etc/promtail" \
+  --volume fendermint-logs:/var/log/fendermint/ \
+  ${PROMTAIL_DOCKER_IMAGE} \
+  --client.external-labels=hostname=$(hostname),promtailrunid=$unixtime \
+  --config.file=etc/promtail/promtail-config.yaml \
+  --client.url=${PROMTAIL_CLIENT_URL}
+"""
+
+[tasks.promtail-start]
+extend = "promtail-run"
+env = { "FLAGS" = "-d" }
+
+[tasks.promtail-destroy]
+env = { "CONTAINER_NAME" = "${PROMTAIL_CONTAINER_NAME}" }
+run_task = "docker-destroy"
+
+[tasks.promtail-logs]
+extend = "docker-logs"
+env = { "CONTAINER_NAME" = "${PROMTAIL_CONTAINER_NAME}" }

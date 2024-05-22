@@ -1,0 +1,25 @@
+name: Setup Cache
+description: "Setup Rust artifact caching"
+inputs:
+  cache-prefix:
+    description: "Caching key used for matching caches"
+    required: true
+  cache-suffix:
+    description: "Caching suffix used to make keys unique and force uploads"
+    required: true
+
+runs:
+  using: "composite"
+
+  steps:
+    - name: Setup sccache
+      # uses: hanabi1224/sccache-action@v1.2.0 # https://github.com/hanabi1224/sccache-action used by Forest.
+      uses: consensus-shipyard/sccache-action@fendermint
+      with:
+        release-name: v0.3.1
+        cache-key: ${{ inputs.cache-prefix }}
+        cache-suffix: ${{ inputs.cache-suffix }}
+        # We should never have to update a cache as long as we use unique suffixes, it happens automatically.
+        cache-update: false
+        # Don't append the date to the cache, the unique suffix should take care of it.
+        cache-date: false

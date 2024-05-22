@@ -1,0 +1,33 @@
+[tasks.ethapi-run]
+script = """
+docker run \
+  ${FLAGS} \
+  --name ${ETHAPI_CONTAINER_NAME} \
+  --init \
+  --user $(id -u) \
+  --network ${NETWORK_NAME} \
+  --publish ${ETHAPI_HOST_PORT}:8545 \
+  --env TENDERMINT_RPC_URL=http://${CMT_CONTAINER_NAME}:26657 \
+  --env TENDERMINT_WS_URL=ws://${CMT_CONTAINER_NAME}:26657/websocket \
+  --env LOG_LEVEL=${ETHAPI_LOG_LEVEL} \
+  --env RUST_BACKTRACE=1 \
+  ${FM_DOCKER_IMAGE} \
+  ${CMD}
+"""
+dependencies = ["docker-network-create"]
+
+[tasks.ethapi-start]
+extend = "ethapi-run"
+env = { "CMD" = "eth run", "FLAGS" = "-d" }
+
+[tasks.ethapi-stop]
+env = { "CONTAINER_NAME" = "${ETHAPI_CONTAINER_NAME}" }
+run_task = "docker-stop"
+
+[tasks.ethapi-destroy]
+env = { "CONTAINER_NAME" = "${ETHAPI_CONTAINER_NAME}" }
+run_task = "docker-destroy"
+
+[tasks.ethapi-logs]
+extend = "docker-logs"
+env = { "CONTAINER_NAME" = "${ETHAPI_CONTAINER_NAME}" }

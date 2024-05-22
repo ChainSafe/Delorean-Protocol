@@ -1,0 +1,44 @@
+[package]
+name = "fendermint_vm_topdown"
+description = "The top down checkpoint mechanism for ipc protocol integration"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-stm = { workspace = true }
+async-trait = { workspace = true }
+bytes = { workspace = true }
+cid = { workspace = true }
+ethers = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+fvm_shared = { workspace = true }
+hex = { workspace = true }
+im = { workspace = true }
+ipc_actors_abis = { workspace = true }
+ipc_ipld_resolver = { workspace = true }
+ipc-api = { workspace = true }
+ipc-provider = { workspace = true }
+libp2p = { workspace = true }
+num-traits = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tendermint-rpc = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+fendermint_vm_genesis = { path = "../genesis" }
+fendermint_vm_event = { path = "../event" }
+fendermint_tracing = { path = "../../tracing" }
+
+[dev-dependencies]
+arbitrary = { workspace = true }
+clap = { workspace = true }
+rand = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+fendermint_crypto = { path = "../../crypto" }
+fendermint_testing = { path = "../../testing", features = ["smt"] }

@@ -1,0 +1,56 @@
+[package]
+name = "fendermint_vm_message"
+description = "Messages (transactions) received on chain and passed on to the FVM"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+blake2b_simd = { workspace = true }
+ethers-core = { workspace = true }
+lazy_static = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_tuple = { workspace = true }
+serde_with = { workspace = true }
+num-traits = { workspace = true }
+
+arbitrary = { workspace = true, optional = true }
+quickcheck = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+
+cid = { workspace = true }
+fvm_shared = { workspace = true }
+fvm_ipld_encoding = { workspace = true }
+ipc-api = { workspace = true }
+
+fendermint_crypto = { path = "../../crypto" }
+fendermint_vm_encoding = { path = "../encoding" }
+fendermint_vm_actor_interface = { path = "../actor_interface" }
+fendermint_testing = { path = "../../testing", optional = true }
+
+[dev-dependencies]
+ethers = { workspace = true }
+hex = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+
+
+# Enable arb on self for tests.
+# Ideally we could do this with `#[cfg(any(test, feature = "arb"))]`,
+# however in that case all the extra dependencies would not kick in,
+# and we'd have to repeat all those dependencies.
+fendermint_vm_message = { path = ".", features = ["arb"] }
+fendermint_testing = { path = "../../testing", features = ["golden"] }
+
+[features]
+arb = [
+  "arbitrary",
+  "quickcheck",
+  "fvm_shared/arb",
+  "cid/arb",
+  "rand",
+  "fendermint_testing/arb",
+]

@@ -1,0 +1,220 @@
+[tasks.cometbft-pull]
+command = "docker"
+args = ["pull", "${CMT_DOCKER_IMAGE}"]
+
+[tasks.cometbft-init]
+extend = "cometbft-run"
+env = { "CMD" = "init", "FLAGS" = "-a STDOUT -a STDERR --rm" }
+
+[tasks.cometbft-start]
+extend = "cometbft-run"
+env = { "CMD" = "start", "FLAGS" = "-d" }
+
+[tasks.cometbft-wait]
+extend = "wait"
+env = { "CARGO_MAKE_WAIT_MILLISECONDS" = "${CMT_WAIT_MILLIS}" }
+
+[tasks.cometbft-run]
+script = """
+docker run \
+  ${FLAGS} \
+  --name ${CMT_CONTAINER_NAME} \
+  --user $(id -u) \
+  --network ${NETWORK_NAME} \
+  --publish ${CMT_RPC_HOST_PORT}:26657 \
+  --publish ${CMT_P2P_HOST_PORT}:26656 \
+  --volume ${CMT_DIR}:/cometbft \
+  --env-file ${ENV_FILE} \
+  --env CMT_PROXY_APP=tcp://${FM_CONTAINER_NAME}:26658 \
+  --env CMT_RPC_MAX_SUBSCRIPTION_CLIENTS=10 \
+  --env CMT_RPC_MAX_SUBSCRIPTIONS_PER_CLIENT=1000 \
+  ${CMT_DOCKER_IMAGE} \
+  ${CMD}
+"""
+dependencies = ["cometbft-pull", "docker-network-create"]
+
+[tasks.get-external-ip]
+script_runner = "@rust"
+description = "This script resolve the external IP and sets NODE_EXTERNAL_IP variable using rust-env plugin"
+plugin = "rust-env"
+script = """
+//! ```cargo
+//! [dependencies]
+//! reqwest = { version = "0.11", features = ["blocking"] }
+//! tokio = { version = "1.33.0", features = ["macros"] }
+//! futures = "0.3.29"
+//! ```
+
+use futures::{stream, StreamExt};
+use reqwest::Client;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::time::Duration;
+
+const CONCURRENT_REQUESTS: usize = 2;
+
+#[tokio::main]
+async fn main() -> Result<(), &'static str> {
+    let client = Client::builder()
+        .user_agent("curl/7.79.1")
+        .timeout(Duration::from_secs(3))
+        .build()
+        .unwrap();
+
+    let urls = vec![
+        "https://ident.me",
+        "https://checkip.amazonaws.com",
+        "https://ifconfig.me",
+        "https://api.ipify.org",
+        "https://ifconfig.co",
+        "https://ipinfo.io/ip",
+        "https://icanhazip.com",
+        "https://api.ipify.org",
+    ];
+
+    let ips: HashMap<String, i32> = HashMap::new();
+    let ips_cell = RefCell::new(ips);
+
+    let bodies = stream::iter(urls)
+        .map(|url| {
+            let client = &client;
+            async move {
+                let resp = client.get(url).send().await?;
+                resp.text().await
+            }
+        })
+        .buffer_unordered(CONCURRENT_REQUESTS);
+
+    bodies
+        .for_each(|b| async {
+            let mut borrowed = ips_cell.borrow_mut();
+            match b {
+                Ok(b) => {
+                    if let Some(count) = borrowed.get_mut(&b) {
+                        *count += 1;
+                    } else {
+                        borrowed.insert(b.clone(), 1);
+                    }
+                }
+                Err(e) => eprintln!("Failed to get a response: {}", e),
+            }
+        })
+        .await;
+
+    let mut external_ip: Option<String> = None;
+    let threshold = 3;
+
+    for (ip, &n) in ips_cell.borrow().iter() {
+        if n >= threshold {
+            external_ip = Some(ip.to_string());
+            break;
+        }
+    }
+
+    match external_ip {
+        Some(ip) => {
+            let ip = format_ip_addr(ip);
+            println!("NODE_EXTERNAL_IP={}", ip);
+            Ok(())
+        }
+        None => Err("failed to resolve external IP"),
+    }
+}
+
+fn format_ip_addr(addr: String) -> String {
+    if addr.contains(':') {
+        return format!("[{}]", addr);
+    }
+    addr
+}
+"""
+
+[plugins.impl.rust-env]
+script = '''
+# make sure the task has a script
+assert ${task.has_script}
+
+taskjson = json_parse ${task.as_json}
+script = set ${taskjson.script}
+writefile ./target/_tempplugin/main.rs ${script}
+
+out = exec --fail-on-error rust-script ./target/_tempplugin/main.rs
+
+output = trim ${out.stdout}
+lines = split ${output} \n
+for line in ${lines}
+    parts = split ${line} =
+    key = array_get ${parts} 0
+    value = array_get ${parts} 1
+    set_env ${key} ${value}
+end
+'''
+
+[tasks.cometbft-node-id]
+script = """
+id=`docker exec ${CMT_CONTAINER_NAME} cometbft show-node-id`
+echo $id
+"""
+
+[tasks.cometbft-export-node-id]
+script = """
+id=`docker exec ${CMT_CONTAINER_NAME} cometbft show-node-id`
+echo $id > ${TEST_DATA_DIR}/${NODE_NAME}/node-id
+"""
+
+[tasks.cometbft-seed]
+dependencies = ["get-external-ip"]
+script = """
+id=`docker exec ${CMT_CONTAINER_NAME} cometbft show-node-id`
+echo $id@${NODE_EXTERNAL_IP}:${CMT_P2P_HOST_PORT}
+"""
+
+[tasks.cometbft-destroy]
+env = { "CONTAINER_NAME" = "${CMT_CONTAINER_NAME}" }
+run_task = "docker-destroy"
+
+[tasks.cometbft-stop]
+env = { "CONTAINER_NAME" = "${CMT_CONTAINER_NAME}" }
+run_task = "docker-stop"
+
+[tasks.cometbft-logs]
+extend = "docker-logs"
+env = { "CONTAINER_NAME" = "${CMT_CONTAINER_NAME}" }
+
+[tasks.seed-enable]
+script = """
+sed -i'' -e "s|seed_mode = false|seed_mode = true|" ${CMT_DIR}/config/config.toml
+"""
+
+[tasks.addr-book-enable]
+script = """
+sed -i'' -e "s|addr_book_strict = false|addr_book_strict = true|" ${CMT_DIR}/config/config.toml
+"""
+
+[tasks.set-seeds]
+script = """
+sed -i'' -e 's|^seeds = ""$|seeds = "{{PLACEHOLDER}}"|g' ${CMT_DIR}/config/config.toml
+sed -i'' -e "s/{{PLACEHOLDER}}/$BOOTSTRAPS/g" ${CMT_DIR}/config/config.toml
+"""
+
+[tasks.set-external-addr]
+script = """
+sed -i'' -e 's|^external_address = ""$|external_address = "{{PLACEHOLDER}}"|g' ${CMT_DIR}/config/config.toml
+sed -i'' -e "s/{{PLACEHOLDER}}/$CMT_P2P_EXTERNAL_ADDR/g" ${CMT_DIR}/config/config.toml
+"""
+
+# This is required to run several validators locally. You may want to disable it when running
+# a real environment.
+[tasks.duplicate-ip-enable]
+script = """
+sed -i'' -e "s|allow_duplicate_ip = false|allow_duplicate_ip = true|" ${CMT_DIR}/config/config.toml
+"""
+
+[tasks.cometbft-config]
+run_task = { name = [
+    "cometbft-init",
+    "set-seeds",
+    "addr-book-enable",
+    "set-external-addr",
+    "duplicate-ip-enable",
+] }

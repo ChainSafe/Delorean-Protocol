@@ -1,0 +1,42 @@
+[package]
+name = "ipc-wallet"
+description = "IPC key management and identity"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license-file.workspace = true
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ahash = "0.8"
+anyhow = { workspace = true }
+argon2 = "0.5"
+base64 = { workspace = true }
+blake2b_simd = { workspace = true }
+bls-signatures = { version = "0.13.0", default-features = false, features = ["blst"] }
+ethers = { workspace = true, optional = true }
+fvm_shared = { workspace = true }
+hex = { workspace = true }
+libc = "0.2"
+libsecp256k1 = { workspace = true }
+log = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_ipld_dagcbor = "0.4.2"
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+xsalsa20poly1305 = "0.9"
+zeroize = "1.6.0"
+
+ipc-types = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true }
+log = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+
+[features]
+with-ethers = ["ethers"]
+

@@ -1,0 +1,6 @@
+Function signatures:
+cfae3217: greet()
+a4136862: setGreeting(string)
+
+Event signatures:
+ad181ee258ff92d26bf7ed2e6b571ef1cba3afc45f028b863b0f02adaffc2f06: GreetingSet(string)

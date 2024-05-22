@@ -1,0 +1,4 @@
+
+[tasks.fendermint-init]
+extend = "fendermint-run"
+env = { "ENTRY" = "/data/scripts/init.sh", "FLAGS" = "-a STDOUT -a STDERR --rm" }

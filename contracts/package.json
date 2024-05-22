@@ -1,0 +1,53 @@
+{
+    "name": "ipc-solidity-actors",
+    "version": "0.0.1",
+    "description": "This repository includes the reference implementation of all the actors (i.e. smart contracts) responsible for the operation of the IPC (i.e. Inter-Planetary Consensus) protocol. These actors are written in Solidity and target FileCoin’s FEVM.",
+    "main": "index.js",
+    "directories": {
+        "lib": "lib",
+        "test": "test"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/consensus-shipyard/ipc-solidity-actors.git"
+    },
+    "author": "Limechain team, ConsensusLab, Protocol Labs, Filecoin Core Devs",
+    "license": "MIT OR Apache-2.0",
+    "bugs": {
+        "url": "https://github.com/consensus-shipyard/ipc-solidity-actors/issues"
+    },
+    "homepage": "https://github.com/consensus-shipyard/ipc-solidity-actors/",
+    "devDependencies": {
+        "@nomicfoundation/hardhat-foundry": "^1.0.1",
+        "@nomiclabs/hardhat-ethers": "^2.2.3",
+        "@typechain/ethers-v5": "^11.1.2",
+        "@typechain/hardhat": "^7.0.0",
+        "dotenv": "^16.0.1",
+        "ethers": "^5.7.0",
+        "hardhat-contract-sizer": "^2.6.1",
+        "hardhat-deploy": "^0.11.14",
+        "hardhat-deploy-ethers": "^0.3.0-beta.13",
+        "husky": "^8.0.3",
+        "lint-staged": "^15.0.2",
+        "prettier": "^2.8.8",
+        "prettier-plugin-solidity": "^1.2.0",
+        "solhint": "^3.5.1",
+        "solhint-plugin-prettier": "^0.0.5",
+        "ts-node": "^10.9.1",
+        "typechain": "^8.3.2",
+        "typescript": "^4.8.3"
+    },
+    "dependencies": {
+        "@solidity-parser/parser": "^0.16.2",
+        "diamond-util": "^1.1.1",
+        "ganache": "^7.9.2",
+        "hardhat": "^2.19.4",
+        "hardhat-storage-layout-changes": "^0.1.2"
+    },
+    "lint-staged": {
+        "*.{js,jsx,ts,tsx,json,css,md,sol}": "prettier --write"
+    }
+}

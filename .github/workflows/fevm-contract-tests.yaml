@@ -1,0 +1,129 @@
+name: Run tests against Fendermint (remote Docker image)
+
+# This workflow is triggered from the main CI workflow.
+on:
+  workflow_call:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Test Repository
+        uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+          repository: 'consensus-shipyard/fevm-contract-tests'
+          path: 'fevm-contract-tests'
+      - name: Checkout Fendermint
+        uses: actions/checkout@v2
+        with:
+          repository: 'consensus-shipyard/ipc'
+          submodules: 'recursive'
+          path: 'ipc'
+      - name: Install Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18.19.0
+      - name: Install dependencies
+        run: npm install
+        working-directory: fevm-contract-tests
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - name: Set up Rust cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - name: Install cargo-make
+        run: |
+          if ! command -v cargo-make &> /dev/null
+          then
+              cargo install -f cargo-make
+          fi
+
+      - uses: actions/cache/save@v3
+        if: always()
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Foundry
+        working-directory: ipc/contracts
+        run: |
+          curl -L https://foundry.paradigm.xyz | bash
+          export PATH="$PATH:/home/runner/.config/.foundry/bin"
+          foundryup
+      - name: Pull latest docker build
+        id: docker-build
+        working-directory: ipc/fendermint
+        run: |
+          export PATH="$PATH:/home/runner/.config/.foundry/bin"
+          docker pull ghcr.io/consensus-shipyard/fendermint:latest
+      - name: Run a testnode
+        id: testnode
+        working-directory: ipc/
+        env:
+          PROMTAIL_CLIENT_URL: ${{ secrets.PROMTAIL_CLIENT_URL }}
+        run: |
+          export BALANCE=10000000000
+          { out=$(cargo make --makefile ./infra/fendermint/Makefile.toml testnode | tee /dev/fd/3); } 3>&1
+          private_key=$(echo $out | sed -e 's/\(.*\)\([a-f0-9]\{64\}\)/0x\2/' | grep 0x | head -c66)
+          echo "ROOT_PRIVATE_KEY=$private_key" >> "$GITHUB_OUTPUT"
+          cat $GITHUB_OUTPUT
+      - name: 'Create and fund accounts'
+        id: accounts
+        env:
+          NUM_ACCOUNTS: 5
+          ROOT_PRIVATE_KEY: ${{ steps.testnode.outputs.ROOT_PRIVATE_KEY }}
+        working-directory: fevm-contract-tests
+        run: |
+          npx hardhat --network local create-fund-accounts
+      - name: 'Run tests: web3.js SimpleCoin'
+        if: always()
+        env:
+          ROOT_PRIVATE_KEY: ${{ steps.testnode.outputs.ROOT_PRIVATE_KEY }}
+          USER_1_PRIVATE_KEY: ${{ steps.accounts.outputs.ACCOUNT1_PRIVATE_KEY }}
+        working-directory: fevm-contract-tests
+        run: |
+          npx hardhat --network local test ./test/web3.js/SimpleCoin.js
+      - name: 'Run tests: web3.js ERC20'
+        if: always()
+        timeout-minutes: 2
+        working-directory: fevm-contract-tests
+        env:
+          ROOT_PRIVATE_KEY: ${{ steps.testnode.outputs.ROOT_PRIVATE_KEY }}
+          USER_1_PRIVATE_KEY: ${{ steps.accounts.outputs.ACCOUNT1_PRIVATE_KEY }}
+        run: |
+          npx hardhat --network local test ./test/web3.js/ERC20.js
+      - name: 'Run tests: ethers.js SimpleCoin'
+        if: always()
+        timeout-minutes: 2
+        working-directory: fevm-contract-tests
+        env:
+          ROOT_PRIVATE_KEY: ${{ steps.testnode.outputs.ROOT_PRIVATE_KEY }}
+          USER_1_PRIVATE_KEY: ${{ steps.accounts.outputs.ACCOUNT1_PRIVATE_KEY }}
+        run: |
+          npx hardhat --network local test ./test/ethers.js/SimpleCoin.js
+      - name: 'Run tests: ethers.js ERC20'
+        if: always()
+        timeout-minutes: 2
+        working-directory: fevm-contract-tests
+        env:
+          ROOT_PRIVATE_KEY: ${{ steps.testnode.outputs.ROOT_PRIVATE_KEY }}
+          USER_1_PRIVATE_KEY: ${{ steps.accounts.outputs.ACCOUNT1_PRIVATE_KEY }}
+        run: |
+          npx hardhat --network local test ./test/ethers.js/ERC20.js

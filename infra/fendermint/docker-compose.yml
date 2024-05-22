@@ -1,0 +1,66 @@
+services:
+  fendermint-node:
+    container_name: fendermint-node${NODE_ID}
+    user: ${UID}:${GID}
+    image: "fendermint:latest"
+    environment:
+      - FM_DATA_DIR=/data/fendermint/data
+      - FM_CHAIN_NAME=$NETWORK_NAME
+      - TENDERMINT_RPC_URL=http://cometbft-node${NODE_ID}:26657
+      - LOG_LEVEL=info
+      - FM_NETWORK=$FM_NETWORK
+    volumes:
+      - $BASE_DIR/node${NODE_ID}:/data
+    networks:
+      testnet:
+        ipv4_address: ${FMT_NODE_ADDR}
+
+  cometbft-node:
+    container_name: cometbft-node${NODE_ID}
+    user: ${UID}:${GID}
+    image: ${CMT_DOCKER_IMAGE}
+    ports:
+      - "${PORT1}-${PORT2}:26656-26657"
+    environment:
+      - ID=${NODE_ID}
+      - LOG=${LOG:-cometbft-node${NODE_ID}.log}
+      - CMT_PROXY_APP=tcp://fendermint-node${NODE_ID}:26658
+      - CMT_P2P_PEX=true
+      # This one is redundant with the way things are spliced into the the config files, it's just here for reference.
+      - CMT_P2P_PERSISTENT_PEERS=${CMT_P2P_PERSISTENT_PEERS}
+    volumes:
+      - $BASE_DIR/node${NODE_ID}/cometbft:/cometbft
+    healthcheck:
+      test: curl --fail http://localhost:26657 || exit 1
+      interval: 8s
+      timeout: 10s
+      retries: 20
+    networks:
+      testnet:
+        ipv4_address: ${CMT_NODE_ADDR}
+
+  ethapi-node:
+    container_name: ethapi-node${NODE_ID}
+    user: ${UID}:${GID}
+    image: "fendermint:latest"
+    command: "eth run"
+    environment:
+      - TENDERMINT_RPC_URL=http://cometbft-node${NODE_ID}:26657
+      - TENDERMINT_WS_URL=ws://cometbft-node${NODE_ID}:26657/websocket
+      - LOG_LEVEL=debug
+      - RUST_BACKTRACE=1
+    ports:
+      - ${PORT3}:8545
+    volumes:
+      - $BASE_DIR/node${NODE_ID}:/data
+    depends_on:
+      cometbft-node:
+        condition: service_healthy
+    networks:
+      testnet:
+        ipv4_address: ${ETHAPI_NODE_ADDR}
+
+networks:
+  testnet:
+    name: ${NETWORK_NAME}
+    external: true

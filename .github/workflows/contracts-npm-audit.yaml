@@ -1,0 +1,19 @@
+name: NPM Audit
+
+# This workflow is triggered from the main CI workflow.
+on:
+  workflow_call:
+
+jobs:
+  npm-audit:
+    name: NPM Audit
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: NPM Audit
+        run: |
+          cd contracts
+          npm install -g npm-audit-resolver
+          check-audit --omit dev --audit-level critical

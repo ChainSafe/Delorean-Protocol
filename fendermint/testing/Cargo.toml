@@ -1,0 +1,57 @@
+[package]
+name = "fendermint_testing"
+description = "Testing utilities"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+serde_yaml = { workspace = true, optional = true }
+toml = { workspace = true, optional = true }
+arbitrary = { workspace = true, optional = true }
+ethers = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+lazy_static = { workspace = true }
+num-bigint = { workspace = true, optional = true }
+quickcheck = { workspace = true, optional = true }
+arbtest = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+
+cid = { workspace = true, optional = true }
+fvm_ipld_encoding = { workspace = true, optional = true }
+fvm_shared = { workspace = true, optional = true, features = ["arb"] }
+ipc-api = { workspace = true, optional = true }
+
+[dev-dependencies]
+arbitrary = { workspace = true }
+
+fendermint_testing = { path = ".", features = ["smt"] }
+
+[features]
+default = []
+smt = ["arbitrary", "arbtest"]
+golden = [
+  "quickcheck",
+  "hex",
+  "serde",
+  "serde_json",
+  "serde_yaml",
+  "toml",
+  "cid",
+  "fvm_ipld_encoding",
+]
+arb = [
+  "quickcheck",
+  "rand",
+  "cid",
+  "fvm_shared",
+  "ipc-api",
+  "arbitrary",
+  "num-bigint/arbitrary",
+  "ethers",
+]

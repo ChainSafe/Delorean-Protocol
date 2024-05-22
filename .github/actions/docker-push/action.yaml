@@ -1,0 +1,49 @@
+
+# Useful links:
+# https://docs.github.com/en/packages/managing-github-packages-using-github-actions-workflows/publishing-and-installing-a-package-with-github-actions#upgrading-a-workflow-that-accesses-a-registry-using-a-personal-access-token
+# https://docs.github.com/en/actions/using-workflows/reusing-workflows
+# https://stackoverflow.com/a/71489231
+
+name: Docker Push
+description: "Publish the Docker image to Github Container Registry"
+inputs:
+  repo-token:
+    description: "secrets.GITHUB_TOKEN; used for logging in with ghcr.io"
+    required: true
+  repo-owner:
+    description: "github.repository_owner; used as the organisation for the Docker image"
+    required: true
+  image-name:
+    description: "Docker image name"
+    required: true
+
+runs:
+  using: "composite"
+
+  steps:
+    - name: Log in to registry
+      shell: bash
+      run: echo "${{ inputs.repo-token }}" | docker login ghcr.io -u $ --password-stdin
+
+    - name: Push image
+      shell: bash
+      run: |
+        IMAGE_ID=ghcr.io/${{ inputs.repo-owner }}/${{ inputs.image-name }}
+
+        # This changes all uppercase characters to lowercase.
+        IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+
+        # This strips the git ref prefix from the version.
+        VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+
+        # This strips the "v" prefix from the tag name.
+        [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+
+        # This uses the Docker `latest` tag convention.
+        [ "$VERSION" == "main" ] && VERSION=latest
+
+        echo IMAGE_ID=$IMAGE_ID
+        echo VERSION=$VERSION
+
+        docker tag ${{ inputs.image-name }} $IMAGE_ID:$VERSION
+        docker push $IMAGE_ID:$VERSION

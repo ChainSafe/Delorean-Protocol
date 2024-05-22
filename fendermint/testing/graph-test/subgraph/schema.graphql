@@ -1,0 +1,4 @@
+type Greeting @entity {
+    id: ID!
+    currentGreeting: String!
+}

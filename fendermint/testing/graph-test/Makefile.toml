@@ -1,0 +1,102 @@
+extend = [
+  { path = "../scripts/common.toml" },
+]
+
+env_files = [
+  { path = "./scripts/graph.env" },
+  { path = "../scripts/common.env" },
+  { path = "../scripts/ci.env", profile = "ci" },
+]
+
+[tasks.test-data-env]
+script = """
+cat << EOF > ${TEST_DATA_DIR}/.env
+CMT_P2P_MAX_NUM_OUTBOUND_PEERS=0
+CMT_CONSENSUS_TIMEOUT_COMMIT=1s
+EOF
+"""
+
+[tasks.test]
+clear = true
+run_task = { name = [
+  "greeter-example",
+  "graph-setup",
+  "graph-test",
+], fork = true, cleanup_task = "graph-teardown" }
+
+
+# Run the Greeter example and export the data to a file where we can pick it up from
+# and put it into the subgraph.template.yaml file.
+[tasks.greeter-example]
+script = """
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint
+cargo run -p fendermint_eth_api --example greeter -- \
+  --secret-key testing/graph-test/test-data/keys/veronica.sk \
+  --out ${TEST_DATA_DIR}/greeter.json \
+  ${VERBOSITY}
+"""
+
+[tasks.graph-setup]
+script = """
+set -x
+echo "Start configuring subgraph..."
+echo "Found deployed contract:"
+cat ${TEST_DATA_DIR}/greeter.json
+echo "\n"
+
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint
+cp -r testing/graph-test/subgraph testing/graph-test/test-data
+mkdir testing/graph-test/test-data/subgraph/config
+mkdir testing/graph-test/test-data/subgraph/abis
+cp testing/graph-test/test-data/greeter.json testing/graph-test/test-data/subgraph/config/testnet.json
+cp testing/contracts/Greeter.abi testing/graph-test/test-data/subgraph/abis/IGreeter.json
+cd testing/graph-test/test-data/subgraph
+npm install
+npm run compile
+npm run graph-node
+
+echo "Waiting for Graph node to start..."
+# Notice that subgraph node does takes a while to spin up
+sleep 30s
+
+npm run create-local
+npm run deploy-local
+
+echo "Subgraph is running now."
+"""
+
+[tasks.graph-test]
+script = """
+#!/bin/bash
+echo "Query against local subgraph server using GraphQL."
+GREETING_MSG_0=$(curl -s 'http://localhost:8000/subgraphs/name/Greeter' --data-raw '{"query":"{\\n  greetings(sort: \\"createdAt:desc\\") {\\n    id\\n    currentGreeting\\n  }\\n}","variables":null,"extensions":{"headers":null}}' | jq -r '.data.greetings[0].currentGreeting')
+GREETING_MSG_1=$(curl -s 'http://localhost:8000/subgraphs/name/Greeter' --data-raw '{"query":"{\\n  greetings(sort: \\"createdAt:desc\\") {\\n    id\\n    currentGreeting\\n  }\\n}","variables":null,"extensions":{"headers":null}}' | jq -r '.data.greetings[1].currentGreeting')
+TARGET_MSGS=' [ "Welcome, weary traveller!", "Howdy doody!" ] '
+echo $GREETING_MSG_0
+echo $GREETING_MSG_1
+
+# It's hard to predict which message get indexed first because they always belong to the same block.
+
+if [[ ! $TARGET_MSGS =~ $GREETING_MSG_0 ]]; then
+  echo "ERROR: Getting unexpected indexed greeting message $GREETING_MSG_0"
+  exit 1
+fi
+
+if [[ ! $TARGET_MSGS =~ $GREETING_MSG_1 ]]; then
+  echo "ERROR: Getting unexpected indexed greeting message $GREETING_MSG_1"
+  exit 1
+fi
+
+echo "GraphQL query test PASS."
+"""
+
+[tasks.graph-teardown]
+script = """
+set -x
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/graph-test/test-data/subgraph/graph-node
+echo "Tearing down subgraph..."
+docker compose down -v
+cd ..
+rm -rf node_modules
+rm -rf config abis generated
+"""

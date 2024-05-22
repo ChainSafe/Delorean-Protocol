@@ -1,0 +1,4 @@
+f8b2cb4f: getBalance(address)
+7bd703e8: getBalanceInEth(address)
+90b98a11: sendCoin(address,uint256)
+587cb60c: sendCoinOrRevert(address,uint256)

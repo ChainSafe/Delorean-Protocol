@@ -1,0 +1,4 @@
+edition = "2021"
+
+# Ignore auto-generated files.
+ignore = ["contracts/binding/src"]

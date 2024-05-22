@@ -1,0 +1,21 @@
+
+name: License CI
+
+# This workflow is triggered from the main CI workflow.
+on:
+  workflow_call:
+
+jobs:
+  license:
+    name: License checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@v3
+
+      # This is so `make license` doesn't say "bad revision origin/main"
+      - name: Fetch origin for diff
+        run: git fetch origin
+
+      - name: Check license headers
+        run: make license

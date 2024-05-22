@@ -1,0 +1,101 @@
+# smoke-test infrastructure:
+# cargo install cargo-make
+#
+# cd fendermint/testing/smoke-test
+# - then -
+# cargo make --profile ci
+# - or -
+# cargo make setup
+# cargo make test
+# docker logs smoke-ethapi
+# cargo make teardown
+
+extend = [
+  { path = "../../../infra/fendermint/scripts/docker.toml" },
+  { path = "../../../infra/fendermint/scripts/cometbft.toml" },
+  { path = "../../../infra/fendermint/scripts/ethapi.toml" },
+  { path = "../../../infra/fendermint/scripts/fendermint.toml" },
+  { path = "../../../infra/fendermint/scripts/promtail.toml" },
+  { path = "./fendermint.toml" },
+]
+
+
+# Define the following in test specific `Makefile.toml` files,
+# where `env.env` defines `NETWORK_NAME` and `TEST_DIR`, expected by `common.env`:
+# env_files = [
+#   { path = "./env.env" },
+#   { path = "../Makefile/common.env" },
+#   { path = "../Makefile/ci.env", profile = "ci" },
+# ]
+
+
+[tasks.default]
+clear = true
+run_task = { name = [
+  "setup",
+  "test",
+], fork = true, cleanup_task = "teardown" }
+
+# Waiting before starting the Eth API for the CometBFT websocket to start listening.
+[tasks.setup]
+dependencies = [
+  "create-log-volume",
+  "test-data-dir",
+  "test-data-env",
+  "test-node-dir",
+  "docker-network-create",
+  "cometbft-init",
+  "fendermint-init",
+  "fendermint-start",
+  "cometbft-start",
+  "ethapi-start",
+  "cometbft-wait",
+  "promtail-start",
+  "fendermint-logs",
+  "cometbft-logs",
+  "ethapi-logs",
+]
+
+[tasks.test]
+clear = true
+dependencies = []
+
+[tasks.teardown]
+# `dependencies` doesn't seem to work with `cleanup_task`.
+run_task = { name = [
+  "cometbft-destroy",
+  "fendermint-destroy",
+  "ethapi-destroy",
+  "promtail-destroy",
+  "docker-network-rm",
+  "test-data-dir-rm",
+  "destroy-log-volume",
+] }
+
+
+[tasks.test-data-dir]
+script = """
+mkdir -p ${TEST_DATA_DIR}/keys;
+cp -r ${TEST_SCRIPTS_DIR} ${TEST_DATA_DIR}/scripts
+"""
+
+[tasks.test-data-dir-rm]
+script = """
+rm -rf ${TEST_DATA_DIR}
+"""
+
+[tasks.test-data-env]
+script = """
+touch ${TEST_DATA_DIR}/.env
+"""
+
+[tasks.test-node-dir]
+script = """
+mkdir -p ${TEST_DATA_DIR}/${NODE_NAME}/fendermint/data/logs;
+mkdir -p ${TEST_DATA_DIR}/${NODE_NAME}/cometbft;
+"""
+
+[tasks.test-node-dir-rm]
+script = """
+rm -rf ${TEST_DATA_DIR}/${NODE_NAME}
+"""
