@@ -125,7 +125,7 @@ paste = "1"
 pin-project = "1.1.2"
 prometheus = "0.13"
 prometheus_exporter = "0.8"
-prost = { version = "0.11" }
+prost = { version = "0.12" }
 quickcheck = "1"
 quickcheck_async = "0.1"
 quickcheck_macros = "1"
@@ -216,16 +216,16 @@ cid = { version = "0.10.1", default-features = false, features = [
 frc42_dispatch = "6.0.0"
 
 # Using the same tendermint-rs dependency as tower-abci. From both we are interested in v037 modules.
-tower-abci = { version = "0.7" }
+tower-abci = { version = "0.14" }
 tower = { version = "0.4" }
-tendermint = { version = "0.31", features = ["secp256k1"] }
-tendermint-config = "0.33.0"
-tendermint-rpc = { version = "0.31", features = [
+tendermint = { version = "0.36", features = ["secp256k1"] }
+tendermint-config = "0.36.0"
+tendermint-rpc = { version = "0.36", features = [
   "secp256k1",
   "http-client",
   "websocket-client",
 ] }
-tendermint-proto = { version = "0.31" }
+tendermint-proto = { version = "0.36" }
 
 [patch.crates-io]
 # Use stable-only features.

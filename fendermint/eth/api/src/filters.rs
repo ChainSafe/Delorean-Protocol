@@ -237,7 +237,9 @@ where
         filter: &Option<et::Filter>,
     ) -> anyhow::Result<()>
     where
-        F: FnOnce(tendermint::Block) -> Pin<Box<dyn Future<Output = anyhow::Result<B>> + Send>>,
+        F: FnOnce(
+            Box<tendermint::Block>,
+        ) -> Pin<Box<dyn Future<Output = anyhow::Result<B>> + Send>>,
     {
         match (self, event.data) {
             (

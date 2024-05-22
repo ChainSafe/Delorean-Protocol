@@ -341,11 +341,11 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
 
     // Split it into components.
     let (consensus, mempool, snapshot, info) =
-        tower_abci::split::service(service, settings.abci.bound);
+        tower_abci::v038::split::service(service, settings.abci.bound);
 
     // Hand those components to the ABCI server. This is where tower layers could be added.
     // TODO: Check out the examples about load shedding in `info` requests.
-    let server = tower_abci::v037::Server::builder()
+    let server = tower_abci::v038::Server::builder()
         .consensus(
             // Limiting the concurrency to 1 here because the `AplicationService::poll_ready` always
             // reports `Ready`, because it doesn't know which request it's going to get.
@@ -368,7 +368,7 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
 
     // Run the ABCI server.
     server
-        .listen(settings.abci.listen.to_string())
+        .listen_tcp(settings.abci.listen.to_string())
         .await
         .map_err(|e| anyhow!("error listening: {e}"))?;
 

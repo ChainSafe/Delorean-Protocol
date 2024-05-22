@@ -5,7 +5,7 @@ use base64::Engine;
 use bytes::Bytes;
 use fendermint_vm_actor_interface::eam::{self, CreateReturn};
 use fvm_ipld_encoding::{BytesDe, RawBytes};
-use tendermint::abci::response::DeliverTx;
+use tendermint::abci::{response::DeliverTx, types::ExecTxResult};
 
 /// Parse what Tendermint returns in the `data` field of [`DeliverTx`] into bytes.
 /// Somewhere along the way it replaces them with the bytes of a Base64 encoded string,
@@ -28,19 +28,19 @@ pub fn encode_data(data: &[u8]) -> Bytes {
 /// Parse what Tendermint returns in the `data` field of [`DeliverTx`] as raw bytes.
 ///
 /// Only call this after the `code` of both [`DeliverTx`] and [`CheckTx`] have been inspected!
-pub fn decode_bytes(deliver_tx: &DeliverTx) -> anyhow::Result<RawBytes> {
+pub fn decode_bytes(deliver_tx: &ExecTxResult) -> anyhow::Result<RawBytes> {
     decode_data(&deliver_tx.data)
 }
 
 /// Parse what Tendermint returns in the `data` field of [`DeliverTx`] as [`CreateReturn`].
-pub fn decode_fevm_create(deliver_tx: &DeliverTx) -> anyhow::Result<CreateReturn> {
+pub fn decode_fevm_create(deliver_tx: &ExecTxResult) -> anyhow::Result<CreateReturn> {
     let data = decode_data(&deliver_tx.data)?;
     fvm_ipld_encoding::from_slice::<eam::CreateReturn>(&data)
         .map_err(|e| anyhow!("error parsing as CreateReturn: {e}"))
 }
 
 /// Parse what Tendermint returns in the `data` field of [`DeliverTx`] as raw ABI return value.
-pub fn decode_fevm_invoke(deliver_tx: &DeliverTx) -> anyhow::Result<Vec<u8>> {
+pub fn decode_fevm_invoke(deliver_tx: &ExecTxResult) -> anyhow::Result<Vec<u8>> {
     let data = decode_data(&deliver_tx.data)?;
     decode_fevm_return_data(data)
 }

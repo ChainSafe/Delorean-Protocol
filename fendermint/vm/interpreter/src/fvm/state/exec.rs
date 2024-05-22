@@ -237,6 +237,14 @@ where
         self.params.app_version
     }
 
+    pub fn circ_supply(&self) -> TokenAmount {
+        self.params.circ_supply.clone()
+    }
+
+    pub fn base_fee(&self) -> TokenAmount {
+        self.params.base_fee.clone()
+    }
+
     /// Get a mutable reference to the underlying [StateTree].
     pub fn state_tree_mut(&mut self) -> &mut StateTree<MachineBlockstore<DB>> {
         self.executor.state_tree_mut()

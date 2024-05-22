@@ -14,7 +14,10 @@ use fvm_shared::{address::Address, error::ExitCode, event::StampedEvent, ActorID
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, num::NonZeroU32};
-use tendermint::abci::{response, Code, Event, EventAttribute};
+use tendermint::{
+    abci::{response, types::ExecTxResult, Code, Event, EventAttribute},
+    AppHash,
+};
 
 use crate::{app::AppError, BlockHeight};
 
@@ -34,15 +37,14 @@ macro_rules! ipld_encode {
 
 /// Response to delivery where the input was blatantly invalid.
 /// This indicates that the validator who made the block was Byzantine.
-pub fn invalid_deliver_tx(err: AppError, description: String) -> response::DeliverTx {
-    tracing::info!(error = ?err, description, "invalid deliver_tx");
-    response::DeliverTx {
+pub fn invalid_exec_tx_result(err: AppError, description: String) -> ExecTxResult {
+    tracing::info!(error = ?err, description, "invalid exec_tx_result");
+    ExecTxResult {
         code: Code::Err(NonZeroU32::try_from(err as u32).expect("error codes are non-zero")),
         info: description,
         ..Default::default()
     }
 }
-
 /// Response to checks where the input was blatantly invalid.
 /// This indicates that the user who sent the transaction is either attacking or has a faulty client.
 pub fn invalid_check_tx(err: AppError, description: String) -> response::CheckTx {
@@ -63,12 +65,11 @@ pub fn invalid_query(err: AppError, description: String) -> response::Query {
         ..Default::default()
     }
 }
-
-pub fn to_deliver_tx(
+pub fn to_exec_tx_result(
     ret: FvmApplyRet,
     domain_hash: Option<DomainHash>,
     block_hash: Option<BlockHash>,
-) -> response::DeliverTx {
+) -> ExecTxResult {
     let receipt = ret.apply_ret.msg_receipt;
 
     // Based on the sanity check in the `DefaultExecutor`.
@@ -88,11 +89,11 @@ pub fn to_deliver_tx(
     if let Some(h) = block_hash {
         events.push(Event::new(
             "block",
-            vec![EventAttribute {
-                key: "hash".to_string(),
-                value: hex::encode(h),
-                index: true,
-            }],
+            vec![EventAttribute::from((
+                "hash".to_string(),
+                hex::encode(h),
+                true,
+            ))],
         ));
     }
 
@@ -113,7 +114,7 @@ pub fn to_deliver_tx(
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| to_error_msg(receipt.exit_code).to_owned());
 
-    response::DeliverTx {
+    ExecTxResult {
         code: to_code(receipt.exit_code),
         data,
         log: Default::default(),
@@ -148,23 +149,22 @@ pub fn to_check_tx(ret: FvmCheckRet) -> response::CheckTx {
     }
 }
 
-/// Map the return values from epoch boundary operations to validator updates.
-pub fn to_end_block(power_table: PowerUpdates) -> anyhow::Result<response::EndBlock> {
+pub fn to_finalize_block(
+    ret: FvmApplyRet,
+    tx_results: Vec<ExecTxResult>,
+    power_table: PowerUpdates,
+    app_hash: AppHash,
+) -> anyhow::Result<response::FinalizeBlock> {
     let validator_updates =
         to_validator_updates(power_table.0).context("failed to convert validator updates")?;
 
-    Ok(response::EndBlock {
+    Ok(response::FinalizeBlock {
+        events: to_events("event", ret.apply_ret.events, ret.emitters),
+        tx_results,
         validator_updates,
-        consensus_param_updates: None,
-        events: Vec::new(), // TODO: Events from epoch transitions?
+        consensus_param_updates: Default::default(),
+        app_hash: app_hash,
     })
-}
-
-/// Map the return values from cron operations.
-pub fn to_begin_block(ret: FvmApplyRet) -> response::BeginBlock {
-    let events = to_events("event", ret.apply_ret.events, ret.emitters);
-
-    response::BeginBlock { events }
 }
 
 /// Convert events to key-value pairs.
@@ -195,28 +195,28 @@ pub fn to_events(
         .map(|se| {
             let mut attrs = Vec::new();
 
-            attrs.push(EventAttribute {
-                key: "emitter.id".to_string(),
-                value: se.emitter.to_string(),
-                index: true,
-            });
+            attrs.push(EventAttribute::from((
+                "emitter.id".to_string(),
+                se.emitter.to_string(),
+                true,
+            )));
 
             // This is emitted because some clients might want to subscribe to events
             // based on the deterministic Ethereum address even before a contract is created.
             if let Some(deleg_addr) = emitters.get(&se.emitter) {
-                attrs.push(EventAttribute {
-                    key: "emitter.deleg".to_string(),
-                    value: deleg_addr.to_string(),
-                    index: true,
-                });
+                attrs.push(EventAttribute::from((
+                    "emitter.deleg".to_string(),
+                    deleg_addr.to_string(),
+                    true,
+                )));
             }
 
             for e in se.event.entries {
-                attrs.push(EventAttribute {
-                    key: e.key,
-                    value: hex::encode(e.value),
-                    index: !e.flags.is_empty(),
-                });
+                attrs.push(EventAttribute::from((
+                    e.key,
+                    hex::encode(e.value),
+                    !e.flags.is_empty(),
+                )));
             }
 
             Event::new(kind.to_string(), attrs)
@@ -229,23 +229,12 @@ pub fn to_domain_hash_event(domain_hash: &DomainHash) -> Event {
     let (k, v) = match domain_hash {
         DomainHash::Eth(h) => ("eth", hex::encode(h)),
     };
-    Event::new(
-        k,
-        vec![EventAttribute {
-            key: "hash".to_string(),
-            value: v,
-            index: true,
-        }],
-    )
+    Event::new(k, vec![EventAttribute::from(("hash".to_string(), v, true))])
 }
 
 /// Event about the message itself.
 pub fn to_message_event(from: Address, to: Address) -> Event {
-    let attr = |k: &str, v: Address| EventAttribute {
-        key: k.to_string(),
-        value: v.to_string(),
-        index: true,
-    };
+    let attr = |k: &str, v: Address| EventAttribute::from((k.to_string(), v.to_string(), true));
     Event::new(
         "message".to_string(),
         vec![attr("from", from), attr("to", to)],
@@ -281,8 +270,8 @@ pub fn to_query(ret: FvmQueryRet, block_height: BlockHeight) -> anyhow::Result<r
             // Send back an entire Tendermint deliver_tx response, encoded as IPLD.
             // This is so there is a single representation of a call result, instead
             // of a normal delivery being one way and a query exposing `FvmApplyRet`.
-            let dtx = to_deliver_tx(ret, None, None);
-            let dtx = tendermint_proto::abci::ResponseDeliverTx::from(dtx);
+            let dtx = to_exec_tx_result(ret, None, None);
+            let dtx = tendermint_proto::abci::ExecTxResult::from(dtx);
             let mut buf = bytes::BytesMut::new();
             dtx.encode(&mut buf)?;
             let bz = buf.to_vec();

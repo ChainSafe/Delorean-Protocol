@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use fendermint_vm_message::query::{FvmQueryHeight, GasEstimate};
 use tendermint::abci::response::DeliverTx;
+use tendermint::abci::types::ExecTxResult;
 use tendermint_rpc::endpoint::broadcast::{tx_async, tx_commit, tx_sync};
 
 use fvm_ipld_encoding::RawBytes;
@@ -101,7 +102,7 @@ pub trait TxClient<M: BroadcastMode = TxCommit>: BoundClient + Send + Sync {
 
     async fn perform<F, T>(&self, msg: ChainMessage, f: F) -> anyhow::Result<M::Response<T>>
     where
-        F: FnOnce(&DeliverTx) -> anyhow::Result<T> + Sync + Send,
+        F: FnOnce(&ExecTxResult) -> anyhow::Result<T> + Sync + Send,
         T: Sync + Send;
 }
 
@@ -187,7 +188,7 @@ pub struct CommitResponse<T> {
 
 pub struct CallResponse<T> {
     /// Response from Tendermint.
-    pub response: QueryResponse<tendermint::abci::response::DeliverTx>,
+    pub response: QueryResponse<tendermint::abci::types::ExecTxResult>,
     /// Parsed return data, if the response indicates success.
     pub return_data: Option<T>,
 }

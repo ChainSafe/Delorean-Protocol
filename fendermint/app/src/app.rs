@@ -689,9 +689,11 @@ where
         }
     }
 
-    /// Signals the beginning of a new block, prior to any `DeliverTx` calls.
-    async fn begin_block(&self, request: request::BeginBlock) -> AbciResult<response::BeginBlock> {
-        let block_height = request.header.height.into();
+    async fn finalize_block(
+        &self,
+        request: request::FinalizeBlock,
+    ) -> AbciResult<response::FinalizeBlock> {
+        let block_height = request.height.into();
         let block_hash = match request.hash {
             tendermint::Hash::Sha256(h) => h,
             tendermint::Hash::None => return Err(anyhow!("empty block hash").into()),
@@ -711,18 +713,18 @@ where
 
         tracing::debug!(
             height = block_height,
-            timestamp = request.header.time.unix_timestamp(),
-            app_hash = request.header.app_hash.to_string(),
+            timestamp = request.time.unix_timestamp(),
+            hash = request.hash.to_string(),
             //app_state_hash = to_app_hash(&state_params).to_string(), // should be the same as `app_hash`
             "begin block"
         );
 
-        state_params.timestamp = to_timestamp(request.header.time);
+        state_params.timestamp = to_timestamp(request.time);
 
         let state = FvmExecState::new(db, self.multi_engine.as_ref(), block_height, state_params)
             .context("error creating new state")?
             .with_block_hash(block_hash)
-            .with_validator_id(request.header.proposer_address);
+            .with_validator_id(request.proposer_address);
 
         tracing::debug!("initialized exec state");
 
@@ -733,58 +735,71 @@ where
             .await
             .context("begin failed")?;
 
-        Ok(to_begin_block(ret))
-    }
+        // deliver tx
+        let mut tx_results = Vec::new();
+        for tx in request.txs {
+            let msg = tx.to_vec();
+            let (result, block_hash) = self
+                .modify_exec_state(|s| async {
+                    let ((env, state), res) = self.interpreter.deliver(s, msg).await?;
+                    let block_hash = state.block_hash();
+                    Ok(((env, state), (res, block_hash)))
+                })
+                .await
+                .context("deliver failed")?;
 
-    /// Apply a transaction to the application's state.
-    async fn deliver_tx(&self, request: request::DeliverTx) -> AbciResult<response::DeliverTx> {
-        let msg = request.tx.to_vec();
-        let (result, block_hash) = self
-            .modify_exec_state(|s| async {
-                let ((env, state), res) = self.interpreter.deliver(s, msg).await?;
-                let block_hash = state.block_hash();
-                Ok(((env, state), (res, block_hash)))
-            })
-            .await
-            .context("deliver failed")?;
+            let response = match result {
+                Err(e) => invalid_exec_tx_result(AppError::InvalidEncoding, e.description),
+                Ok(ret) => match ret {
+                    ChainMessageApplyRet::Signed(Err(InvalidSignature(d))) => {
+                        invalid_exec_tx_result(AppError::InvalidSignature, d)
+                    }
+                    ChainMessageApplyRet::Signed(Ok(ret)) => {
+                        to_exec_tx_result(ret.fvm, ret.domain_hash, block_hash)
+                    }
+                    ChainMessageApplyRet::Ipc(ret) => to_exec_tx_result(ret, None, block_hash),
+                },
+            };
 
-        let response = match result {
-            Err(e) => invalid_deliver_tx(AppError::InvalidEncoding, e.description),
-            Ok(ret) => match ret {
-                ChainMessageApplyRet::Signed(Err(InvalidSignature(d))) => {
-                    invalid_deliver_tx(AppError::InvalidSignature, d)
-                }
-                ChainMessageApplyRet::Signed(Ok(ret)) => {
-                    to_deliver_tx(ret.fvm, ret.domain_hash, block_hash)
-                }
-                ChainMessageApplyRet::Ipc(ret) => to_deliver_tx(ret, None, block_hash),
-            },
-        };
+            if response.code != 0.into() {
+                tracing::info!(
+                    "deliver_tx failed: {:?} - {:?}",
+                    response.code,
+                    response.info
+                );
+            }
 
-        if response.code != 0.into() {
-            tracing::info!(
-                "deliver_tx failed: {:?} - {:?}",
-                response.code,
-                response.info
-            );
+            tx_results.push(response);
         }
 
-        Ok(response)
-    }
-
-    /// Signals the end of a block.
-    async fn end_block(&self, request: request::EndBlock) -> AbciResult<response::EndBlock> {
-        tracing::debug!(height = request.height, "end block");
+        // end_block
 
         // TODO: Return events from epoch transitions.
-        let ret = self
-            .modify_exec_state(|s| self.interpreter.end(s))
+
+        let (power_table, app_hash) = self
+            .modify_exec_state(|s| async {
+                let ((env, mut exec_state), power_table) = self.interpreter.end(s).await?;
+                let mut state = self.committed_state()?;
+                state.block_height = exec_state.block_height().try_into()?;
+                state.state_params.timestamp = exec_state.timestamp();
+
+                let state_root = exec_state.state_tree_mut().flush()?;
+
+                state.state_params.state_root = state_root;
+                state.state_params.app_version = exec_state.app_version();
+                state.state_params.base_fee = exec_state.base_fee();
+                state.state_params.circ_supply = exec_state.circ_supply();
+                state.state_params.power_scale = exec_state.power_scale();
+
+                let app_hash = state.app_hash();
+
+                Ok(((env, exec_state), (power_table, app_hash)))
+            })
             .await
             .context("end failed")?;
 
-        let r = to_end_block(ret)?;
-
-        Ok(r)
+        Ok(to_finalize_block(ret, tx_results, power_table, app_hash)
+            .context("finalize block failed")?)
     }
 
     /// Commit the current state at the current height.

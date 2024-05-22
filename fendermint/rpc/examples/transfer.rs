@@ -116,7 +116,7 @@ async fn main() {
     .expect("transfer failed");
 
     assert!(res.response.check_tx.code.is_ok(), "check is ok");
-    assert!(res.response.deliver_tx.code.is_ok(), "deliver is ok");
+    assert!(res.response.tx_result.code.is_ok(), "deliver is ok");
     assert!(res.return_data.is_some());
 }
 

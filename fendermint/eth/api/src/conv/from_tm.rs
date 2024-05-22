@@ -16,7 +16,7 @@ use fvm_shared::bigint::Zero;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::{bigint::BigInt, econ::TokenAmount};
 use lazy_static::lazy_static;
-use tendermint::abci::response::DeliverTx;
+use tendermint::abci::types::ExecTxResult;
 use tendermint::abci::{self, Event, EventAttribute};
 use tendermint::crypto::sha256::Sha256;
 use tendermint_rpc::endpoint;
@@ -88,7 +88,8 @@ fn block_zero() -> tendermint::Block {
     tendermint::Block::new(
         header,
         Vec::new(),
-        tendermint::evidence::Data::default(),
+        // tendermint::evidence::Data::default(),
+        tendermint::evidence::List::default(),
         Some(commit),
     )
     .unwrap()
@@ -399,7 +400,7 @@ fn app_hash_to_root(app_hash: &tendermint::AppHash) -> anyhow::Result<et::H256> 
     }
 }
 
-fn maybe_contract_address(deliver_tx: &DeliverTx) -> Option<EthAddress> {
+fn maybe_contract_address(deliver_tx: &ExecTxResult) -> Option<EthAddress> {
     fendermint_rpc::response::decode_fevm_create(deliver_tx)
         .ok()
         .map(|cr| {
@@ -423,6 +424,8 @@ pub fn to_eth_block_zero(block: tendermint::Block) -> anyhow::Result<et::Block<s
         end_block_events: None,
         validator_updates: Vec::new(),
         consensus_param_updates: None,
+        finalize_block_events: Vec::new(),
+        app_hash: Default::default(),
     };
     let block = to_eth_block(&block, block_results, TokenAmount::zero(), ChainID::from(0))
         .context("failed to map block zero to eth")?;
@@ -450,14 +453,28 @@ pub fn to_logs(
         let addr = event
             .attributes
             .iter()
-            .find(|a| a.key == "emitter.deleg")
-            .and_then(|a| a.value.parse::<Address>().ok());
+            .find(|a| {
+                if let Ok(key_str) = a.key_str() {
+                    key_str == "emitter.deleg"
+                } else {
+                    false
+                }
+            })
+            .and_then(|a| a.value_str().ok())
+            .and_then(|a| a.parse::<Address>().ok());
 
         let actor_id = event
             .attributes
             .iter()
-            .find(|a| a.key == "emitter.id")
-            .and_then(|a| a.value.parse::<u64>().ok())
+            .find(|a| {
+                if let Ok(key_str) = a.key_str() {
+                    key_str == "emitter.id"
+                } else {
+                    false
+                }
+            })
+            .and_then(|a| a.value_str().ok())
+            .and_then(|a| a.parse::<u64>().ok())
             .ok_or_else(|| anyhow!("cannot find the 'emitter.id' key"))?;
 
         let address = addr
@@ -498,18 +515,25 @@ fn to_topics_and_data(attrs: &Vec<EventAttribute>) -> anyhow::Result<(Vec<et::H2
     let mut data = None;
     for attr in attrs {
         let decode_value = || {
-            hex::decode(&attr.value)
-                .with_context(|| format!("failed to decode attr value as hex: {}", &attr.value))
+            hex::decode(&attr.value_str()?).with_context(|| {
+                format!(
+                    "failed to decode attr value as hex: {}",
+                    &attr.value_str().unwrap()
+                )
+            })
         };
 
-        match attr.key.as_str() {
+        match attr.key_str()? {
             "t1" | "t2" | "t3" | "t4" => {
                 let bz = decode_value()?;
                 if bz.len() != 32 {
                     return Err(anyhow!("unexpected topic value: {attr:?}"));
                 }
                 let h = et::H256::from_slice(&bz);
-                let i = attr.key[1..].parse::<usize>().unwrap().saturating_sub(1);
+                let i = attr.key_str()?[1..]
+                    .parse::<usize>()
+                    .unwrap()
+                    .saturating_sub(1);
                 while topics.len() <= i {
                     topics.push(et::H256::default())
                 }
@@ -543,8 +567,16 @@ pub fn find_hash_event(kind: &str, events: &[abci::Event]) -> Option<et::H256> {
     events
         .iter()
         .find(|e| e.kind == kind)
-        .and_then(|e| e.attributes.iter().find(|a| a.key == "hash"))
-        .and_then(|a| hex::decode(&a.value).ok())
+        .and_then(|e| {
+            e.attributes.iter().find(|a| {
+                if let Ok(key_str) = a.key_str() {
+                    key_str == "hash"
+                } else {
+                    false
+                }
+            })
+        })
+        .and_then(|a| hex::decode(&a.value_str().unwrap()).ok())
         .filter(|bz| bz.len() == 32)
         .map(|bz| et::H256::from_slice(&bz))
 }
@@ -567,13 +599,25 @@ pub fn collect_emitters(events: &[abci::Event]) -> HashSet<Address> {
             event
                 .attributes
                 .iter()
-                .find(|a| a.key == "emitter.deleg")
-                .and_then(|a| a.value.parse::<Address>().ok()),
+                .find(|a| {
+                    if let Ok(key_str) = a.key_str() {
+                        key_str == "emitter.deleg"
+                    } else {
+                        false
+                    }
+                })
+                .and_then(|a| a.value_str().unwrap().parse::<Address>().ok()),
             event
                 .attributes
                 .iter()
-                .find(|a| a.key == "emitter.id")
-                .and_then(|a| a.value.parse::<u64>().ok())
+                .find(|a| {
+                    if let Ok(key_str) = a.key_str() {
+                        key_str == "emitter.id"
+                    } else {
+                        false
+                    }
+                })
+                .and_then(|a| a.value_str().unwrap().parse::<u64>().ok())
                 .map(Address::new_id),
         ]
         .into_iter()
