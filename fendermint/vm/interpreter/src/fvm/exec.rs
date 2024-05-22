@@ -5,7 +5,7 @@ use anyhow::Context;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
-use fendermint_vm_actor_interface::{chainmetadata, cron, system};
+use fendermint_vm_actor_interface::{chainmetadata, cron, system, cetf};
 use fvm::executor::ApplyRet;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_shared::{address::Address, ActorID, MethodNum, BLOCK_GAS_LIMIT};
@@ -130,6 +130,31 @@ where
                     anyhow::bail!("failed to apply chainmetadata message: {}", err);
                 }
             }
+        }
+
+        // Invoke some actor functionality on each new block
+        {
+            let msg = FvmMessage {
+                from: system::SYSTEM_ACTOR_ADDR,
+                to: cetf::CETFSYSCALL_ACTOR_ADDR,
+                sequence: height as u64,
+                gas_limit,
+                method_num: fendermint_actor_cetf::Method::Invoke as u64,
+                params: Default::default(),
+                value: Default::default(),
+                version: Default::default(),
+                gas_fee_cap: Default::default(),
+                gas_premium: Default::default(),
+            };
+
+            let (apply_ret, _) = state.execute_implicit(msg)?;
+
+            if let Some(err) = apply_ret.failure_info {
+                anyhow::bail!("failed to apply customsyscall message: {}", err);
+            }
+
+            let val: u64 = apply_ret.msg_receipt.return_data.deserialize().unwrap();
+            println!("customsyscall actor returned: {}", val);
         }
 
         let ret = FvmApplyRet {
