@@ -3,7 +3,6 @@
 use fvm::call_manager::CallManager;
 use fvm::gas::Gas;
 use fvm::kernel::prelude::*;
-use fvm::kernel::Context;
 use fvm::kernel::Result;
 use fvm::kernel::{
     ActorOps, CryptoOps, DebugOps, EventOps, IpldBlockOps, MessageOps, NetworkOps, RandomnessOps,
@@ -121,11 +120,11 @@ where
         + MessageOps
         + NetworkOps
         + RandomnessOps
-        + SelfOps,	
+        + SelfOps,
 {
-	fn link_syscalls(linker: &mut Linker<K>) -> anyhow::Result<()> {
+    fn link_syscalls(linker: &mut Linker<K>) -> anyhow::Result<()> {
         DefaultKernel::<K::CallManager>::link_syscalls(linker)?;
-				
+
         linker.link_syscall("cetf_kernel", "enqueue_tag", enqueue_tag)?;
 
         Ok(())
@@ -141,4 +140,4 @@ pub fn enqueue_tag(
 ) -> Result<()> {
     let tag = context.memory.try_slice(tag_off, tag_len)?;
     context.kernel.enqueue_tag(tag)
-} 
+}

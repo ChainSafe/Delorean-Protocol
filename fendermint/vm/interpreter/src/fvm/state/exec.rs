@@ -22,8 +22,8 @@ use fvm_shared::{
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::fvm::externs::FendermintExterns;
 use crate::fvm::cetfkernel::CetfKernelImpl;
+use crate::fvm::externs::FendermintExterns;
 use fendermint_vm_core::{chainid::HasChainID, Timestamp};
 use fendermint_vm_encoding::IsHumanReadable;
 

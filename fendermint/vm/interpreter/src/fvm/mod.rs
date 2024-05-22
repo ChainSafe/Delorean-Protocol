@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 mod broadcast;
+mod cetfkernel;
 mod check;
 mod checkpoint;
 mod exec;
@@ -12,7 +13,6 @@ mod query;
 pub mod state;
 pub mod store;
 pub mod upgrades;
-mod cetfkernel;
 
 #[cfg(any(test, feature = "bundle"))]
 pub mod bundle;
