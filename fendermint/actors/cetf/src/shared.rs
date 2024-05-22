@@ -1,6 +1,6 @@
 use num_derive::FromPrimitive;
 
-pub const CETF_ACTOR_NAME: &str = "enquque_tag";
+pub const CETF_ACTOR_NAME: &str = "cetf";
 
 #[derive(FromPrimitive)]
 #[repr(u64)]
