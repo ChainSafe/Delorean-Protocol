@@ -7,23 +7,23 @@ use fil_actors_runtime::builtin::singletons::SYSTEM_ACTOR_ADDR;
 use fil_actors_runtime::runtime::{ActorCode, Runtime};
 use fil_actors_runtime::ActorError;
 
+use crate::EnqueueTagParams;
 use crate::{Method, CETF_ACTOR_NAME};
 
 fil_actors_runtime::wasm_trampoline!(Actor);
 
 fvm_sdk::sys::fvm_syscalls! {
     module = "cetf_kernel";
-    pub fn enqueue_tag() -> Result<u64>;
+    pub fn enqueue_tag(tag: *const u8, tag_len: u32) -> Result<()>;
 }
 
 pub struct Actor;
 impl Actor {
-    fn invoke(rt: &impl Runtime) -> Result<u64, ActorError> {
+    fn enqueue_tag(rt: &impl Runtime, params: EnqueueTagParams) -> Result<(), ActorError> {
         rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
-
         unsafe {
-            let value = enqueue_tag().unwrap();
-            Ok(value)
+            enqueue_tag(params.tag.as_ptr(), params.tag.len().try_into().unwrap()).unwrap();
+            Ok(())
         }
     }
 }
@@ -36,6 +36,6 @@ impl ActorCode for Actor {
     }
 
     actor_dispatch! {
-        Invoke => invoke,
+        EnqueueTag => enqueue_tag,
     }
 }

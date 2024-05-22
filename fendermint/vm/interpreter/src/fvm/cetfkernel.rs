@@ -3,6 +3,7 @@
 use fvm::call_manager::CallManager;
 use fvm::gas::Gas;
 use fvm::kernel::prelude::*;
+use fvm::kernel::Context;
 use fvm::kernel::Result;
 use fvm::kernel::{
     ActorOps, CryptoOps, DebugOps, EventOps, IpldBlockOps, MessageOps, NetworkOps, RandomnessOps,

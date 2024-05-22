@@ -1,9 +1,16 @@
 use num_derive::FromPrimitive;
+use fvm_ipld_encoding::tuple::{Deserialize_tuple, Serialize_tuple};
 
 pub const CETF_ACTOR_NAME: &str = "cetf";
+
+
+#[derive(Default, Debug, Serialize_tuple, Deserialize_tuple)]
+pub struct EnqueueTagParams {
+    pub tag: [u8; 32],
+}
 
 #[derive(FromPrimitive)]
 #[repr(u64)]
 pub enum Method {
-    Invoke = frc42_dispatch::method_hash!("Invoke"),
+    EnqueueTag = frc42_dispatch::method_hash!("EnqueueTag"),
 }

@@ -134,13 +134,18 @@ where
 
         // Invoke some actor functionality on each new block
         {
+            let params = fvm_ipld_encoding::RawBytes::serialize(
+                fendermint_actor_cetf::EnqueueTagParams {
+                    tag: [0xfd; 32],
+                },
+            )?;
             let msg = FvmMessage {
                 from: system::SYSTEM_ACTOR_ADDR,
                 to: cetf::CETFSYSCALL_ACTOR_ADDR,
                 sequence: height as u64,
                 gas_limit,
-                method_num: fendermint_actor_cetf::Method::Invoke as u64,
-                params: Default::default(),
+                method_num: fendermint_actor_cetf::Method::EnqueueTag as u64,
+                params,
                 value: Default::default(),
                 version: Default::default(),
                 gas_fee_cap: Default::default(),
