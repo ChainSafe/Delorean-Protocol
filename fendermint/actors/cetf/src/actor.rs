@@ -22,7 +22,7 @@ impl Actor {
     fn enqueue_tag(rt: &impl Runtime, params: EnqueueTagParams) -> Result<(), ActorError> {
         rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
         unsafe {
-            enqueue_tag(params.tag.as_ptr(), params.tag.len().try_into().unwrap()).unwrap();
+            let result = enqueue_tag(params.tag.as_ptr(), params.tag.len() as u32);
             Ok(())
         }
     }

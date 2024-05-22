@@ -21,7 +21,7 @@ use ambassador::Delegate;
 use cid::Cid;
 
 pub trait CetfKernel: Kernel {
-    fn enqueue_tag(&self) -> Result<u64>;
+    fn enqueue_tag(&self, tag: &[u8]) -> Result<()>;
 }
 
 // our custom kernel extends the filecoin kernel
@@ -44,7 +44,7 @@ where
     C: CallManager,
     CetfKernelImpl<C>: Kernel,
 {
-    fn enqueue_tag(&self) -> Result<u64> {
+    fn enqueue_tag(&self, tag: &[u8]) -> Result<()> {
         // Here we have access to the Kernel structure and can call
         // any of its methods, send messages, etc.
 
@@ -52,7 +52,8 @@ where
         // access the network, etc.
 
         // TODO: Implement the logic of the syscall here
-        Ok(10)
+        println!("Enqueue tag syscall called with tag: {:?}", tag);
+        Ok(())
     }
 }
 
@@ -134,7 +135,10 @@ where
 /// Public exposed interface to allow actors to call the syscall
 /// This defines how a tag is read out of the actor memory and passed to the kernel
 pub fn enqueue_tag(
-    context: fvm::syscalls::Context<'_, impl CetfKernel>
-) -> Result<u64> {
-    context.kernel.enqueue_tag()
+    context: fvm::syscalls::Context<'_, impl CetfKernel>,
+    tag_off: u32,
+    tag_len: u32,
+) -> Result<()> {
+    let tag = context.memory.try_slice(tag_off, tag_len)?;
+    context.kernel.enqueue_tag(tag)
 } 

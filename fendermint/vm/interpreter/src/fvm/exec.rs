@@ -157,9 +157,6 @@ where
             if let Some(err) = apply_ret.failure_info {
                 anyhow::bail!("failed to apply cetf message: {}", err);
             }
-
-            let val: u64 = apply_ret.msg_receipt.return_data.deserialize().unwrap();
-            println!("cetf actor returned: {}", val);
         }
 
         let ret = FvmApplyRet {
