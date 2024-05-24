@@ -7,7 +7,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-bls-signatures = { version = "0.13.0", default-features = false, features = ["blst"] }
+bls-signatures = { version = "0.15.0", default-features = false, features = ["blst"] }
 
 anyhow = { workspace = true }
 async-stm = { workspace = true }

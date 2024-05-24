@@ -9,7 +9,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bls-signatures = { version = "0.13.0", default-features = false, features = ["blst"] }
+bls-signatures = { version = "0.15.0", default-features = false, features = ["blst"] }
 
 fendermint_vm_actor_interface = { path = "../actor_interface" }
 fendermint_vm_core = { path = "../core" }
