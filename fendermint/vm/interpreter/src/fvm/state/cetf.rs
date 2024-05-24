@@ -5,7 +5,7 @@ use fendermint_actor_cetf::{BlockHeight, Tag};
 use fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ID;
 use fvm::state_tree::StateTree;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::{CborStore, DAG_CBOR};
+use fvm_ipld_encoding::CborStore;
 
 /// Reads the CETF system actor state to retrieve the tag
 pub fn get_tag_at_height<DB: Blockstore + Clone + 'static>(
