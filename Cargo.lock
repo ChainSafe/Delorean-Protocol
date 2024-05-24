@@ -2872,6 +2872,7 @@ dependencies = [
  "anyhow",
  "async-stm",
  "async-trait",
+ "bls-signatures 0.13.1",
  "bytes",
  "cid",
  "fendermint_abci",

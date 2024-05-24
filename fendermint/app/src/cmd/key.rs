@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::{anyhow, Context};
+use bls_signatures::Serialize;
 use fendermint_app_options::key::KeyShowPeerIdArgs;
 use fendermint_crypto::{from_b64, to_b64, PublicKey, SecretKey};
 use fendermint_vm_actor_interface::eam::EthAddress;
@@ -64,8 +65,13 @@ cmd! {
     let sk = SecretKey::random(&mut rng);
     let pk = sk.public_key();
 
+    let bls_sk = bls_signatures::PrivateKey::generate(&mut rng);
+    let bls_pk = bls_sk.public_key();
+
     export(&self.out_dir, &self.name, "sk", &secret_to_b64(&sk))?;
     export(&self.out_dir, &self.name, "pk", &public_to_b64(&pk))?;
+    export(&self.out_dir,  &self.name, "bls.sk", &to_b64(&bls_sk.as_bytes()))?;
+    export(&self.out_dir,  &self.name, "bls.pk", &to_b64(&bls_pk.as_bytes()))?;
 
     Ok(())
   }
