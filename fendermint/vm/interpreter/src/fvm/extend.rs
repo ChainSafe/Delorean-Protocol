@@ -9,10 +9,7 @@ use tendermint_rpc::Client;
 
 use crate::ExtendVoteInterpreter;
 
-use super::{
-    state::{FvmExecState, FvmQueryState},
-    FvmMessageInterpreter,
-};
+use super::{state::FvmQueryState, FvmMessageInterpreter};
 
 pub enum ExtendVoteKind {
     Tag(Tag),

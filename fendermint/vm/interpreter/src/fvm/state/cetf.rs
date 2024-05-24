@@ -55,5 +55,5 @@ pub fn get_tag_at_height<DB: Blockstore + Clone + 'static>(
             }
         };
 
-    Ok(actor_state.get_tag_at_height(&bstore, height)?)
+    Ok(actor_state.get_tag_at_height(&bstore, &height)?)
 }

@@ -6,7 +6,7 @@ mod broadcast;
 mod check;
 mod checkpoint;
 mod exec;
-mod extend;
+pub mod extend;
 mod externs;
 mod genesis;
 mod query;

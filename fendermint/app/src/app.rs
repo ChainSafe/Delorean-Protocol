@@ -24,6 +24,7 @@ use fendermint_vm_interpreter::bytes::{
     BytesMessageApplyRes, BytesMessageCheckRes, BytesMessageQuery, BytesMessageQueryRes,
 };
 use fendermint_vm_interpreter::chain::{ChainEnv, ChainMessageApplyRet, IllegalMessage};
+use fendermint_vm_interpreter::fvm::extend::ExtendVoteKind;
 use fendermint_vm_interpreter::fvm::state::cetf::get_tag_at_height;
 use fendermint_vm_interpreter::fvm::state::{
     empty_state_tree, CheckStateRef, FvmExecState, FvmGenesisState, FvmQueryState, FvmStateParams,
@@ -433,8 +434,8 @@ where
         Output = BytesMessageQueryRes,
     >,
     I: ExtendVoteInterpreter<
-        State = FvmExecState<SS>,
-        Message = Tag,
+        State = FvmQueryState<SS>,
+        Message = ExtendVoteKind,
         Output = Option<bls_signatures::Signature>,
     >,
 {
@@ -442,13 +443,13 @@ where
         let db = self.state_store_clone();
         let height = FvmQueryHeight::from(0);
         let (state_params, block_height) = self.state_params_at_height(height)?;
-
-        if !Self::can_query_state(block_height, &state_params) {
-            return Ok(invalid_query(
-                AppError::NotInitialized,
-                "The app hasn't been initialized yet.".to_owned(),
-            ));
-        }
+        let state_root = state_params.state_root;
+        // if !Self::can_query_state(block_height, &state_params) {
+        //     return Ok(invalid_query(
+        //         AppError::NotInitialized,
+        //         "The app hasn't been initialized yet.".to_owned(),
+        //     ));
+        // }
 
         let state = FvmQueryState::new(
             db,
@@ -460,12 +461,16 @@ where
         )
         .context("error creating query state")?;
 
-        // TODO: I think we actually want to do this in ExtendVoteInterpreter::extend_vote.
-        let tag = get_tag_at_height(db, &state_params.state_root, block_height as i64)
+        // TODO: I think we actually want to do this in ExtendVoteInterpreter::extend_vote. Furthermote, we probably shouldnt ned to borrow db again.
+        let db = self.state_store_clone();
+        let tag = get_tag_at_height(db, &state_root, block_height as i64)
             .context("failed to get tag at height")?;
 
         tracing::info!("ExtendVote found tag at height {}: {:?}", block_height, tag);
-        let signature = tag.map(|tag| self.interpreter.extend_vote(state, tag));
+        let signature = tag.map(|tag| {
+            self.interpreter
+                .extend_vote(state, ExtendVoteKind::Tag(tag))
+        });
 
         match signature {
             Some(Ok(Some(sig))) => Ok(response::ExtendVote {
