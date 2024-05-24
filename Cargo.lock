@@ -2800,6 +2800,7 @@ dependencies = [
  "cid",
  "fil_actors_runtime",
  "frc42_dispatch",
+ "fvm_ipld_blockstore",
  "fvm_ipld_encoding",
  "fvm_sdk",
  "fvm_shared",

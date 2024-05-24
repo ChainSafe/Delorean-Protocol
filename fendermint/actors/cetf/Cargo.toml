@@ -11,12 +11,11 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 cid = { workspace = true, default-features = false }
-fil_actors_runtime = { workspace = true, optional = true, features = [
-    "fil-actor",
-] }
+fil_actors_runtime = { workspace = true }
 fvm_sdk = { workspace = true }
 fvm_shared = { workspace = true }
 fvm_ipld_encoding = { workspace = true }
+fvm_ipld_blockstore = { workspace = true }
 num-derive = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_tuple = { workspace = true }
@@ -25,4 +24,5 @@ frc42_dispatch = { workspace = true }
 
 [features]
 default = []
-fil-actor = ["fil_actors_runtime"]
+fil-actor = ["fil_actors_runtime/fil-actor"]
+
