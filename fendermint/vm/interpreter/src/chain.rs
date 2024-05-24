@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use crate::fvm::state::ipc::GatewayCaller;
 use crate::fvm::{topdown, FvmApplyRet, PowerUpdates};
+use crate::ExtendVoteInterpreter;
 use crate::{
     fvm::state::FvmExecState,
     fvm::FvmMessage,
@@ -508,6 +509,28 @@ where
     }
 }
 
+#[async_trait]
+impl<I, DB> ExtendVoteInterpreter for ChainMessageInterpreter<I, DB>
+where
+    DB: Blockstore + Clone + 'static + Send + Sync,
+    I: ExtendVoteInterpreter,
+{
+    type State = I::State;
+    type Message = I::Message;
+    type Output = I::Output;
+
+    fn extend_vote(&self, msg: Self::Message) -> anyhow::Result<Self::Output> {
+        self.inner.extend_vote(msg)
+    }
+
+    async fn verify_vote_extension(
+        &self,
+        state: Self::State,
+        msg: Self::Message,
+    ) -> anyhow::Result<(Self::State, Self::Output)> {
+        self.inner.verify_vote_extension(state, msg).await
+    }
+}
 /// Convert a signed relayed bottom-up checkpoint to a syntetic message we can send to the FVM.
 ///
 /// By mapping to an FVM message we invoke the right contract to validate the checkpoint,

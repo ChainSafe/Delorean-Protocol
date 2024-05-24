@@ -3,6 +3,7 @@
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 
+use ethers::types::Sign;
 use fendermint_vm_core::chainid::HasChainID;
 use fendermint_vm_message::{
     query::FvmQuery,
@@ -14,7 +15,7 @@ use serde::Serialize;
 
 use crate::{
     fvm::{FvmApplyRet, FvmCheckRet, FvmMessage},
-    CheckInterpreter, ExecInterpreter, GenesisInterpreter, QueryInterpreter,
+    CheckInterpreter, ExecInterpreter, ExtendVoteInterpreter, GenesisInterpreter, QueryInterpreter,
 };
 
 /// Message validation failed due to an invalid signature.
@@ -246,5 +247,27 @@ where
         genesis: Self::Genesis,
     ) -> anyhow::Result<(Self::State, Self::Output)> {
         self.inner.init(state, genesis).await
+    }
+}
+
+#[async_trait]
+impl<I> ExtendVoteInterpreter for SignedMessageInterpreter<I>
+where
+    I: ExtendVoteInterpreter,
+{
+    type State = I::State;
+    type Message = I::Message;
+    type Output = I::Output;
+
+    fn extend_vote(&self, msg: Self::Message) -> anyhow::Result<Self::Output> {
+        self.inner.extend_vote(msg)
+    }
+
+    async fn verify_vote_extension(
+        &self,
+        state: Self::State,
+        msg: Self::Message,
+    ) -> anyhow::Result<(Self::State, Self::Output)> {
+        self.inner.verify_vote_extension(state, msg).await
     }
 }

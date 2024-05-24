@@ -27,6 +27,23 @@ pub trait GenesisInterpreter: Sync + Send {
     ) -> anyhow::Result<(Self::State, Self::Output)>;
 }
 
+/// Sign tags
+#[async_trait]
+pub trait ExtendVoteInterpreter: Sync + Send {
+    type State: Send;
+    type Message: Send;
+    type Output;
+
+    /// Sign the vote.
+    fn extend_vote(&self, msg: Self::Message) -> anyhow::Result<Self::Output>;
+
+    async fn verify_vote_extension(
+        &self,
+        state: Self::State,
+        msg: Self::Message,
+    ) -> anyhow::Result<(Self::State, Self::Output)>;
+}
+
 /// Prepare and process transaction proposals.
 #[async_trait]
 pub trait ProposalInterpreter: Sync + Send {

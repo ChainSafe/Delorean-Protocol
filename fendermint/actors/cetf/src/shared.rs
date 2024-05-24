@@ -1,3 +1,5 @@
+// Copyright 2022-2024 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use fvm_ipld_encoding::tuple::{Deserialize_tuple, Serialize_tuple};
 use num_derive::FromPrimitive;
 

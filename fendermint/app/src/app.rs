@@ -4,9 +4,14 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::events::{NewBlock, ProposalProcessed};
+use crate::AppExitCode;
+use crate::BlockHeight;
+use crate::{tmconv::*, VERSION};
 use anyhow::{anyhow, Context, Result};
 use async_stm::{atomically, atomically_or_err};
 use async_trait::async_trait;
+use bls_signatures::Serialize as _;
 use cid::Cid;
 use fendermint_abci::util::take_until_max_size;
 use fendermint_abci::{AbciResult, Application};
@@ -19,6 +24,7 @@ use fendermint_vm_interpreter::bytes::{
     BytesMessageApplyRes, BytesMessageCheckRes, BytesMessageQuery, BytesMessageQueryRes,
 };
 use fendermint_vm_interpreter::chain::{ChainEnv, ChainMessageApplyRet, IllegalMessage};
+use fendermint_vm_interpreter::fvm::state::cetf::get_tag_at_height;
 use fendermint_vm_interpreter::fvm::state::{
     empty_state_tree, CheckStateRef, FvmExecState, FvmGenesisState, FvmQueryState, FvmStateParams,
     FvmUpdatableParams,
@@ -27,9 +33,9 @@ use fendermint_vm_interpreter::fvm::store::ReadOnlyBlockstore;
 use fendermint_vm_interpreter::fvm::{FvmApplyRet, FvmGenesisOutput, PowerUpdates};
 use fendermint_vm_interpreter::signed::InvalidSignature;
 use fendermint_vm_interpreter::{
-    CheckInterpreter, ExecInterpreter, GenesisInterpreter, ProposalInterpreter, QueryInterpreter,
+    CheckInterpreter, ExecInterpreter, ExtendVoteInterpreter, GenesisInterpreter,
+    ProposalInterpreter, QueryInterpreter,
 };
-use fendermint_vm_interpreter::fvm::state::cetf::get_tag_at_height;
 use fendermint_vm_message::query::FvmQueryHeight;
 use fendermint_vm_snapshot::{SnapshotClient, SnapshotError};
 use fvm::engine::MultiEngine;
@@ -44,11 +50,6 @@ use tendermint::abci::request::CheckTxKind;
 use tendermint::abci::{request, response};
 use tendermint_rpc::endpoint::block_by_hash;
 use tracing::instrument;
-
-use crate::events::{NewBlock, ProposalProcessed};
-use crate::AppExitCode;
-use crate::BlockHeight;
-use crate::{tmconv::*, VERSION};
 
 #[derive(Serialize)]
 #[repr(u8)]
@@ -390,7 +391,8 @@ where
         !(height == 0 && params.timestamp.0 == 0 && params.network_version == NetworkVersion::V0)
     }
 }
-
+// TODO: Properly import this
+pub type Tag = [u8; 32];
 // NOTE: The `Application` interface doesn't allow failures at the moment. The protobuf
 // of `Response` actually has an `Exception` type, so in theory we could use that, and
 // Tendermint would break up the connection. However, before the response could reach it,
@@ -430,30 +432,49 @@ where
         Query = BytesMessageQuery,
         Output = BytesMessageQueryRes,
     >,
+    I: ExtendVoteInterpreter<
+        State = FvmExecState<SS>,
+        Message = Tag,
+        Output = Option<bls_signatures::Signature>,
+    >,
 {
-    async fn extend_vote(&self, request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
+    async fn extend_vote(&self, _request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
         let db = self.state_store_clone();
-        // Note: Here a height of zero means to use the tip state
-        let (state_params, block_height) = self.state_params_at_height(0.into())?;
-        let block_height = block_height as i64;
 
+        let state = self.committed_state()?;
+        let state_params = state.state_params;
+        let block_height = state.block_height as i64;
+
+        // TODO: I think we actually want to do this in ExtendVoteInterpreter::extend_vote.
         let tag = get_tag_at_height(db, &state_params.state_root, &block_height)
             .context("failed to get tag at height")?;
 
-        println!("ExtendVote found tag at height {}: {:?}", block_height, tag);
+        tracing::info!("ExtendVote found tag at height {}: {:?}", block_height, tag);
+        let signature = tag.map(|tag| self.interpreter.extend_vote(tag));
 
-        Ok(response::ExtendVote {
-            vote_extension: Default::default(),
-        })
+        match signature {
+            Some(Ok(Some(sig))) => Ok(response::ExtendVote {
+                vote_extension: sig.as_bytes().into(),
+            }),
+            Some(Ok(None)) | None => Ok(response::ExtendVote {
+                vote_extension: Default::default(),
+            }),
+            Some(Err(e)) => Err(e.context("failed to extend vote").into()),
+        }
     }
 
     async fn verify_vote_extension(
         &self,
         request: request::VerifyVoteExtension,
     ) -> AbciResult<response::VerifyVoteExtension> {
+        // TODO: Implement this.
+        // 1. Get the BLS pubkey from some on-chain mapping from validators secp256k1 pubkey -> BLS pubkey.
+        // 2. Verify the signature using the BLS pubkey against tag (get from state).
+        // 3. Do some other checks e.g. is every tag signed? Because if not we reject. I think we want EVERY tag signed (assuming multiple)
         if request.vote_extension.is_empty() {
             Ok(response::VerifyVoteExtension::Accept)
         } else {
+            tracing::debug!("Shouldnt be anything to sign right now");
             Ok(response::VerifyVoteExtension::Reject)
         }
     }
@@ -665,6 +686,10 @@ where
         &self,
         request: request::PrepareProposal,
     ) -> AbciResult<response::PrepareProposal> {
+        // TODO: I believe this is where we should aggregate the partial signatures from the previous block's
+        // vote extensions (well technically in intepreter.prepare?) so that we can inject the aggregated
+        // signature into a transaction to publish to the cetf actor so other contracts on chain can access it.
+
         tracing::debug!(
             height = request.height.value(),
             time = request.time.to_string(),

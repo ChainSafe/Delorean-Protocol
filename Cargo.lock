@@ -3329,6 +3329,7 @@ dependencies = [
  "arbitrary",
  "async-stm",
  "async-trait",
+ "bls-signatures 0.13.1",
  "cid",
  "ethers",
  "fendermint_actor_cetf",

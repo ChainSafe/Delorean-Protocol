@@ -59,6 +59,7 @@ cmd! {
     }
 }
 
+// TODO: Actually use this key. For now we just generate keys at genesis.
 cmd! {
   KeyGenArgs(self) {
     let mut rng = ChaCha20Rng::from_entropy();
@@ -165,6 +166,12 @@ fn b64_to_secret(b64: &str) -> anyhow::Result<SecretKey> {
     Ok(sk)
 }
 
+fn b64_to_bls_secret(b64: &str) -> anyhow::Result<bls_signatures::PrivateKey> {
+    let bz = from_b64(b64)?;
+    let sk = bls_signatures::PrivateKey::from_bytes(&bz)?;
+    Ok(sk)
+}
+
 pub fn read_public_key(public_key: &Path) -> anyhow::Result<PublicKey> {
     let b64 = std::fs::read_to_string(public_key).context("failed to read public key")?;
     let pk = b64_to_public(&b64).context("failed to parse public key")?;
@@ -185,6 +192,12 @@ pub fn read_secret_key_hex(private_key: &Path) -> anyhow::Result<SecretKey> {
 pub fn read_secret_key(secret_key: &Path) -> anyhow::Result<SecretKey> {
     let b64 = std::fs::read_to_string(secret_key).context("failed to read secret key")?;
     let sk = b64_to_secret(&b64).context("failed to parse secret key")?;
+    Ok(sk)
+}
+
+pub fn read_bls_secret_key(secret_key: &Path) -> anyhow::Result<bls_signatures::PrivateKey> {
+    let b64 = std::fs::read_to_string(secret_key).context("failed to read secret key")?;
+    let sk = b64_to_bls_secret(&b64).context("failed to parse secret key")?;
     Ok(sk)
 }
 

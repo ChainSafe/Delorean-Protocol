@@ -10,7 +10,8 @@ use fvm_ipld_encoding::Error as IpldError;
 use crate::{
     chain::{ChainMessageApplyRet, ChainMessageCheckRes},
     fvm::{FvmQuery, FvmQueryRet},
-    CheckInterpreter, ExecInterpreter, GenesisInterpreter, ProposalInterpreter, QueryInterpreter,
+    CheckInterpreter, ExecInterpreter, ExtendVoteInterpreter, GenesisInterpreter,
+    ProposalInterpreter, QueryInterpreter,
 };
 
 pub type BytesMessageApplyRes = Result<ChainMessageApplyRet, IpldError>;
@@ -294,6 +295,28 @@ where
         // TODO (IPC-44): Handle the serialized application state as well as `Genesis`.
         let genesis: Genesis = parse_genesis(&genesis)?;
         self.inner.init(state, genesis).await
+    }
+}
+
+#[async_trait]
+impl<I> ExtendVoteInterpreter for BytesMessageInterpreter<I>
+where
+    I: ExtendVoteInterpreter,
+{
+    type State = I::State;
+    type Message = I::Message;
+    type Output = I::Output;
+
+    fn extend_vote(&self, msg: Self::Message) -> anyhow::Result<Self::Output> {
+        self.inner.extend_vote(msg)
+    }
+
+    async fn verify_vote_extension(
+        &self,
+        state: Self::State,
+        msg: Self::Message,
+    ) -> anyhow::Result<(Self::State, Self::Output)> {
+        self.inner.verify_vote_extension(state, msg).await
     }
 }
 
