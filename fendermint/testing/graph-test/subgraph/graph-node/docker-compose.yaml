@@ -2,6 +2,7 @@ version: '3'
 services:
   graph-node:
     image: graphprotocol/graph-node:v0.27.0
+    platform: linux/amd64
     ports:
       - '8000:8000'
       - '8001:8001'
@@ -24,6 +25,7 @@ services:
       GRAPH_ETHEREUM_GENESIS_BLOCK_NUMBER: 1
   ipfs:
     image: ipfs/go-ipfs:v0.10.0
+    platform: linux/amd64
     ports:
       - '5001:5001'
   postgres:
