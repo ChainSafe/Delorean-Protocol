@@ -7,7 +7,6 @@ use std::marker::PhantomData;
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use fendermint_vm_message::chain::ChainMessage;
-use tendermint::abci::response::DeliverTx;
 use tendermint::abci::types::ExecTxResult;
 use tendermint::block::Height;
 use tendermint_rpc::{endpoint::abci_query::AbciQuery, Client, HttpClient, Scheme, Url};

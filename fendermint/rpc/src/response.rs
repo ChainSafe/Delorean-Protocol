@@ -5,7 +5,7 @@ use base64::Engine;
 use bytes::Bytes;
 use fendermint_vm_actor_interface::eam::{self, CreateReturn};
 use fvm_ipld_encoding::{BytesDe, RawBytes};
-use tendermint::abci::{response::DeliverTx, types::ExecTxResult};
+use tendermint::abci::types::ExecTxResult;
 
 /// Parse what Tendermint returns in the `data` field of [`DeliverTx`] into bytes.
 /// Somewhere along the way it replaces them with the bytes of a Base64 encoded string,

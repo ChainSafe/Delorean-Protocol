@@ -7,7 +7,6 @@ use anyhow::Context;
 use async_trait::async_trait;
 use bytes::Bytes;
 use fendermint_vm_message::query::{FvmQueryHeight, GasEstimate};
-use tendermint::abci::response::DeliverTx;
 use tendermint::abci::types::ExecTxResult;
 use tendermint_rpc::endpoint::broadcast::{tx_async, tx_commit, tx_sync};
 

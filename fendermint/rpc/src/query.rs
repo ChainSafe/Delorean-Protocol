@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use fvm_ipld_encoding::serde::Serialize;
 use fvm_shared::message::Message;
 use prost::Message as ProstMessage;
-use tendermint::abci::response::DeliverTx;
 use tendermint::abci::types::ExecTxResult;
 use tendermint::block::Height;
 use tendermint_rpc::endpoint::abci_query::AbciQuery;
