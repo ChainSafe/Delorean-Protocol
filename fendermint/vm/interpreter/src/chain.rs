@@ -519,8 +519,8 @@ where
     type Message = I::Message;
     type Output = I::Output;
 
-    fn extend_vote(&self, msg: Self::Message) -> anyhow::Result<Self::Output> {
-        self.inner.extend_vote(msg)
+    fn extend_vote(&self, state: Self::State, msg: Self::Message) -> anyhow::Result<Self::Output> {
+        self.inner.extend_vote(state, msg)
     }
 
     async fn verify_vote_extension(

@@ -440,17 +440,32 @@ where
 {
     async fn extend_vote(&self, _request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
         let db = self.state_store_clone();
+        let height = FvmQueryHeight::from(0);
+        let (state_params, block_height) = self.state_params_at_height(height)?;
 
-        let state = self.committed_state()?;
-        let state_params = state.state_params;
-        let block_height = state.block_height as i64;
+        if !Self::can_query_state(block_height, &state_params) {
+            return Ok(invalid_query(
+                AppError::NotInitialized,
+                "The app hasn't been initialized yet.".to_owned(),
+            ));
+        }
+
+        let state = FvmQueryState::new(
+            db,
+            self.multi_engine.clone(),
+            block_height.try_into()?,
+            state_params,
+            self.check_state.clone(),
+            height == FvmQueryHeight::Pending,
+        )
+        .context("error creating query state")?;
 
         // TODO: I think we actually want to do this in ExtendVoteInterpreter::extend_vote.
-        let tag = get_tag_at_height(db, &state_params.state_root, &block_height)
+        let tag = get_tag_at_height(db, &state_params.state_root, block_height as i64)
             .context("failed to get tag at height")?;
 
         tracing::info!("ExtendVote found tag at height {}: {:?}", block_height, tag);
-        let signature = tag.map(|tag| self.interpreter.extend_vote(tag));
+        let signature = tag.map(|tag| self.interpreter.extend_vote(state, tag));
 
         match signature {
             Some(Ok(Some(sig))) => Ok(response::ExtendVote {
