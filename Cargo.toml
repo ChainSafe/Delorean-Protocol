@@ -161,6 +161,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "regis
 tracing-appender = "0.2.3"
 url = { version = "2.4.1", features = ["serde"] }
 zeroize = "1.6"
+ambassador = "0.3.5"
 
 # Workspace deps
 ipc-api = { path = "ipc/api" }

@@ -5,7 +5,7 @@ use anyhow::Context;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
-use fendermint_vm_actor_interface::{chainmetadata, cron, system};
+use fendermint_vm_actor_interface::{cetf, chainmetadata, cron, system};
 use fvm::executor::ApplyRet;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_shared::{address::Address, ActorID, MethodNum, BLOCK_GAS_LIMIT};
@@ -129,6 +129,32 @@ where
                 if let Some(err) = apply_ret.failure_info {
                     anyhow::bail!("failed to apply chainmetadata message: {}", err);
                 }
+            }
+        }
+
+        // Invoke some actor functionality on each new block
+        {
+            let params =
+                fvm_ipld_encoding::RawBytes::serialize(fendermint_actor_cetf::EnqueueTagParams {
+                    tag: [0xfd; 32],
+                })?;
+            let msg = FvmMessage {
+                from: system::SYSTEM_ACTOR_ADDR,
+                to: cetf::CETFSYSCALL_ACTOR_ADDR,
+                sequence: height as u64,
+                gas_limit,
+                method_num: fendermint_actor_cetf::Method::EnqueueTag as u64,
+                params,
+                value: Default::default(),
+                version: Default::default(),
+                gas_fee_cap: Default::default(),
+                gas_premium: Default::default(),
+            };
+
+            let (apply_ret, _) = state.execute_implicit(msg)?;
+
+            if let Some(err) = apply_ret.failure_info {
+                anyhow::bail!("failed to apply cetf message: {}", err);
             }
         }
 

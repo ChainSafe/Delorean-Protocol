@@ -2794,6 +2794,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "fendermint_actor_cetf"
+version = "0.1.0"
+dependencies = [
+ "cid",
+ "fil_actors_runtime",
+ "frc42_dispatch",
+ "fvm_ipld_encoding",
+ "fvm_sdk",
+ "fvm_shared",
+ "num-derive 0.3.3",
+ "num-traits",
+ "serde",
+ "serde_tuple",
+]
+
+[[package]]
 name = "fendermint_actor_chainmetadata"
 version = "0.1.0"
 dependencies = [
@@ -2838,6 +2854,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cid",
+ "fendermint_actor_cetf",
  "fendermint_actor_chainmetadata",
  "fendermint_actor_eam",
  "fil_actor_bundler",
@@ -3305,12 +3322,14 @@ dependencies = [
 name = "fendermint_vm_interpreter"
 version = "0.1.0"
 dependencies = [
+ "ambassador",
  "anyhow",
  "arbitrary",
  "async-stm",
  "async-trait",
  "cid",
  "ethers",
+ "fendermint_actor_cetf",
  "fendermint_actor_chainmetadata",
  "fendermint_actor_eam",
  "fendermint_actors",
