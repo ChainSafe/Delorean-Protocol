@@ -230,6 +230,14 @@ tendermint-proto = { version = "0.36" }
 [patch.crates-io]
 # Use stable-only features.
 gcra = { git = "https://github.com/consensus-shipyard/gcra-rs.git", branch = "main" }
+tendermint = { git = "https://github.com/ec2/tendermint-rs.git", branch = "ec2/ipc"}
+tendermint-config = { git = "https://github.com/ec2/tendermint-rs.git", branch = "ec2/ipc"}
+tendermint-rpc = { git = "https://github.com/ec2/tendermint-rs.git", branch = "ec2/ipc"}
+tendermint-proto = { git = "https://github.com/ec2/tendermint-rs.git", branch = "ec2/ipc"}
+# tendermint = { path = "./tendermint-rs/tendermint"}
+# tendermint-config = { path = "./tendermint-rs/config"}
+# tendermint-rpc = { path = "./tendermint-rs/rpc"}
+# tendermint-proto = { path = "./tendermint-rs/proto"}
 
 [profile.wasm]
 inherits = "release"
