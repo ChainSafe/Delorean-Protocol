@@ -111,21 +111,6 @@ pub trait Application {
         })
     }
 
-    // /// Signals the beginning of a new block, prior to any `DeliverTx` calls.
-    // async fn begin_block(&self, request: request::BeginBlock) -> AbciResult<response::BeginBlock> {
-    //     Ok(Default::default())
-    // }
-
-    // /// Apply a transaction to the application's state.
-    // async fn deliver_tx(&self, request: request::DeliverTx) -> AbciResult<response::DeliverTx> {
-    //     Ok(Default::default())
-    // }
-
-    // /// Signals the end of a block.
-    // async fn end_block(&self, request: request::EndBlock) -> AbciResult<response::EndBlock> {
-    //     Ok(Default::default())
-    // }
-
     /// Commit the current state at the current height.
     async fn commit(&self) -> AbciResult<response::Commit> {
         Ok(Default::default())

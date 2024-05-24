@@ -688,11 +688,12 @@ where
             Ok(response::ProcessProposal::Reject)
         }
     }
-
+    /// The transaction execution step of the application. Combines what used to be `BeginBlock`, `DeliverTx`, and `EndBlock`.
     async fn finalize_block(
         &self,
         request: request::FinalizeBlock,
     ) -> AbciResult<response::FinalizeBlock> {
+        // BeginBlock
         let block_height = request.height.into();
         let block_hash = match request.hash {
             tendermint::Hash::Sha256(h) => h,
@@ -715,7 +716,6 @@ where
             height = block_height,
             timestamp = request.time.unix_timestamp(),
             hash = request.hash.to_string(),
-            //app_state_hash = to_app_hash(&state_params).to_string(), // should be the same as `app_hash`
             "begin block"
         );
 
@@ -735,7 +735,7 @@ where
             .await
             .context("begin failed")?;
 
-        // deliver tx
+        // [Deliver Tx]
         let mut tx_results = Vec::new();
         for tx in request.txs {
             let msg = tx.to_vec();
@@ -772,7 +772,7 @@ where
             tx_results.push(response);
         }
 
-        // end_block
+        // EndBlock
 
         // TODO: Return events from epoch transitions.
 

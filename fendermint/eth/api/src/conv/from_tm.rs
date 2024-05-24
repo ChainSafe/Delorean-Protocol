@@ -453,26 +453,14 @@ pub fn to_logs(
         let addr = event
             .attributes
             .iter()
-            .find(|a| {
-                if let Ok(key_str) = a.key_str() {
-                    key_str == "emitter.deleg"
-                } else {
-                    false
-                }
-            })
+            .find(|a| matches!(a.key_str(), Ok(key_str) if key_str == "emitter.deleg"))
             .and_then(|a| a.value_str().ok())
             .and_then(|a| a.parse::<Address>().ok());
 
         let actor_id = event
             .attributes
             .iter()
-            .find(|a| {
-                if let Ok(key_str) = a.key_str() {
-                    key_str == "emitter.id"
-                } else {
-                    false
-                }
-            })
+            .find(|a| matches!(a.key_str(), Ok(key_str) if key_str == "emitter.id"))
             .and_then(|a| a.value_str().ok())
             .and_then(|a| a.parse::<u64>().ok())
             .ok_or_else(|| anyhow!("cannot find the 'emitter.id' key"))?;
@@ -568,13 +556,9 @@ pub fn find_hash_event(kind: &str, events: &[abci::Event]) -> Option<et::H256> {
         .iter()
         .find(|e| e.kind == kind)
         .and_then(|e| {
-            e.attributes.iter().find(|a| {
-                if let Ok(key_str) = a.key_str() {
-                    key_str == "hash"
-                } else {
-                    false
-                }
-            })
+            e.attributes
+                .iter()
+                .find(|a| matches!(a.key_str(), Ok(key_str) if key_str == "hash"))
         })
         .and_then(|a| hex::decode(a.value_str().unwrap()).ok())
         .filter(|bz| bz.len() == 32)
@@ -599,24 +583,12 @@ pub fn collect_emitters(events: &[abci::Event]) -> HashSet<Address> {
             event
                 .attributes
                 .iter()
-                .find(|a| {
-                    if let Ok(key_str) = a.key_str() {
-                        key_str == "emitter.deleg"
-                    } else {
-                        false
-                    }
-                })
+                .find(|a| matches!(a.key_str(), Ok(key_str) if key_str == "emitter.deleg"))
                 .and_then(|a| a.value_str().unwrap().parse::<Address>().ok()),
             event
                 .attributes
                 .iter()
-                .find(|a| {
-                    if let Ok(key_str) = a.key_str() {
-                        key_str == "emitter.id"
-                    } else {
-                        false
-                    }
-                })
+                .find(|a| matches!(a.key_str(), Ok(key_str) if key_str == "emitter.id"))
                 .and_then(|a| a.value_str().unwrap().parse::<u64>().ok())
                 .map(Address::new_id),
         ]
