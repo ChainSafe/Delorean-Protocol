@@ -6,3 +6,4 @@ mod shared;
 mod state;
 
 pub use shared::*;
+pub use state::State;

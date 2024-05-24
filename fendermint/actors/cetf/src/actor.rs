@@ -8,7 +8,7 @@ use fil_actors_runtime::runtime::{ActorCode, Runtime};
 use fil_actors_runtime::ActorError;
 
 use crate::state::State;
-use crate::{EnqueueTagParams, ClearTagParams};
+use crate::{EnqueueTagParams, GetTagParams};
 use crate::{Method, CETF_ACTOR_NAME};
 
 fil_actors_runtime::wasm_trampoline!(Actor);
@@ -23,6 +23,7 @@ impl Actor {
     /// Initialize the HAMT store for tags in the actor state
     /// Callable only by the system actor at genesis
     pub fn constructor(rt: &impl Runtime) -> Result<(), ActorError> {
+        println!("cetf actor constructor called");
         rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
 
         let st = State::new(rt.store())?;
@@ -35,19 +36,17 @@ impl Actor {
     /// Callable by anyone and designed to be called from Solidity contracts
     pub fn enqueue_tag(rt: &impl Runtime, params: EnqueueTagParams) -> Result<(), ActorError> {
         let state: State = rt.state()?;
-        state.add_tag_at_height(rt, &rt.message().nonce(), params.tag)?;
+        // NOTE: use of epoch is intentional here. In fendermint the epoch is the block height
+        state.add_tag_at_height(rt, &rt.curr_epoch(), params.tag)?;
 
         Ok(())
     }
 
     /// Clear a tag as presumably it has now been signed by the validators at it corresponding height
     /// Callable only by the system actor
-    pub fn clear_tag(rt: &impl Runtime, params: ClearTagParams) -> Result<(), ActorError> {
-        rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
-
+    pub fn get_tag(rt: &impl Runtime, params: GetTagParams) -> Result<(), ActorError> {
         let state: State = rt.state()?;
-        state.clear_tag_at_height(rt, &rt.message().nonce())?;
-
+        state.get_tag_at_height(rt.store(), &params.height)?;
         Ok(())
     }
 }
@@ -62,6 +61,6 @@ impl ActorCode for Actor {
     actor_dispatch! {
         Constructor => constructor,
         EnqueueTag => enqueue_tag,
-        ClearTag => clear_tag,
+        GetTag => get_tag,
     }
 }

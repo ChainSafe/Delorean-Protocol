@@ -27,8 +27,8 @@ impl State {
         Ok(())
     }
 
-    pub fn clear_tag_at_height(&self, rt: &impl Runtime, height: &BlockHeight) -> Result<Option<Tag>, ActorError> {
-        let tag_map = TagMap::load(rt.store(), &self.tag_map, DEFAULT_HAMT_CONFIG, "reading tag_map")?;
+    pub fn get_tag_at_height<BS: Blockstore>(&self, store: &BS, height: &BlockHeight) -> Result<Option<Tag>, ActorError> {
+        let tag_map = TagMap::load(store, &self.tag_map, DEFAULT_HAMT_CONFIG, "reading tag_map")?;
         Ok(tag_map.get(height)?.copied())
     }
 }

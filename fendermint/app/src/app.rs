@@ -429,6 +429,29 @@ where
         Output = BytesMessageQueryRes,
     >,
 {
+    async fn extend_vote(&self, request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
+        let db = self.state_store_clone();
+        // Note: Here a height of zero means to use the tip state
+        let (state_params, block_height) = self.state_params_at_height(0.into())?;
+
+        
+
+        Ok(response::ExtendVote {
+            vote_extension: Default::default(),
+        })
+    }
+
+    async fn verify_vote_extension(
+        &self,
+        request: request::VerifyVoteExtension,
+    ) -> AbciResult<response::VerifyVoteExtension> {
+        if request.vote_extension.is_empty() {
+            Ok(response::VerifyVoteExtension::Accept)
+        } else {
+            Ok(response::VerifyVoteExtension::Reject)
+        }
+    }
+
     /// Provide information about the ABCI application.
     async fn info(&self, _request: request::Info) -> AbciResult<response::Info> {
         let state = self.committed_state()?;
