@@ -13,11 +13,6 @@ use crate::{Method, CETF_ACTOR_NAME};
 
 fil_actors_runtime::wasm_trampoline!(Actor);
 
-// fvm_sdk::sys::fvm_syscalls! {
-//     module = "cetf_kernel";
-//     pub fn enqueue_tag(tag: *const u8, tag_len: u32) -> Result<()>;
-// }
-
 pub struct Actor;
 impl Actor {
     /// Initialize the HAMT store for tags in the actor state
