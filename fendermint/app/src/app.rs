@@ -776,35 +776,16 @@ where
 
         // TODO: Return events from epoch transitions.
 
-        let (power_table, app_hash) = self
-            .modify_exec_state(|s| async {
-                let ((env, mut exec_state), power_table) = self.interpreter.end(s).await?;
-                let mut state = self.committed_state()?;
-                state.block_height = exec_state.block_height().try_into()?;
-                state.state_params.timestamp = exec_state.timestamp();
-
-                let state_root = exec_state.state_tree_mut().flush()?;
-
-                state.state_params.state_root = state_root;
-                state.state_params.app_version = exec_state.app_version();
-                state.state_params.base_fee = exec_state.base_fee();
-                state.state_params.circ_supply = exec_state.circ_supply();
-                state.state_params.power_scale = exec_state.power_scale();
-
-                let app_hash = state.app_hash();
-
-                Ok(((env, exec_state), (power_table, app_hash)))
-            })
+        let power_table = self
+            .modify_exec_state(|s| self.interpreter.end(s))
             .await
             .context("end failed")?;
 
-        Ok(to_finalize_block(ret, tx_results, power_table, app_hash)
-            .context("finalize block failed")?)
-    }
-
-    /// Commit the current state at the current height.
-    async fn commit(&self) -> AbciResult<response::Commit> {
         let exec_state = self.take_exec_state().await;
+
+        // TODO: This is technically "right" but I think we actually wanna do all this stuff in `commit`.
+        // The "issue" is that we need to know the app_hash before `commit`. But we can't actually get that
+        // without calling commit on exec_state.
 
         // Commit the execution state to the datastore.
         let mut state = self.committed_state()?;
@@ -831,6 +812,26 @@ where
         let app_hash = state.app_hash();
         let block_height = state.block_height;
 
+        tracing::debug!(
+            block_height,
+            state_root = state_root.to_string(),
+            app_hash = app_hash.to_string(),
+            "finalize block state to commit"
+        );
+
+        // Commit app state to the datastore.
+        self.set_committed_state(state)?;
+
+        Ok(to_finalize_block(ret, tx_results, power_table, app_hash)
+            .context("finalize block failed")?)
+    }
+
+    /// Commit the current state at the current height.
+    async fn commit(&self) -> AbciResult<response::Commit> {
+        let state = self.committed_state()?;
+
+        let block_height = state.block_height;
+
         // Tell CometBFT how much of the block history it can forget.
         let retain_height = if self.state_hist_size == 0 {
             Default::default()
@@ -840,8 +841,6 @@ where
 
         tracing::debug!(
             block_height,
-            state_root = state_root.to_string(),
-            app_hash = app_hash.to_string(),
             timestamp = state.state_params.timestamp.0,
             "commit state"
         );
@@ -879,9 +878,6 @@ where
             atomically(|| snapshots.notify(block_height, state.state_params.clone())).await;
         }
 
-        // Commit app state to the datastore.
-        self.set_committed_state(state)?;
-
         emit!(NewBlock { block_height });
 
         // Reset check state.
@@ -889,7 +885,10 @@ where
         *guard = None;
 
         Ok(response::Commit {
-            data: app_hash.into(),
+            // Note: This used to be the app_hash which is calculated as a result of flushing the state tree.
+            // It has been moved into FinalizeBlock. And this field is now unused in 0.38.
+            // See the TODO in `finalize_block` for relevant info.
+            data: Default::default(),
             retain_height: retain_height.try_into().expect("height is valid"),
         })
     }

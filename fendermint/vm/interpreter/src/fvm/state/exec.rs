@@ -237,12 +237,8 @@ where
         self.params.app_version
     }
 
-    pub fn circ_supply(&self) -> TokenAmount {
-        self.params.circ_supply.clone()
-    }
-
-    pub fn base_fee(&self) -> TokenAmount {
-        self.params.base_fee.clone()
+    pub fn params(&self) -> &FvmUpdatableParams {
+        &self.params
     }
 
     /// Get a mutable reference to the underlying [StateTree].

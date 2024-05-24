@@ -515,7 +515,7 @@ fn to_topics_and_data(attrs: &Vec<EventAttribute>) -> anyhow::Result<(Vec<et::H2
     let mut data = None;
     for attr in attrs {
         let decode_value = || {
-            hex::decode(&attr.value_str()?).with_context(|| {
+            hex::decode(attr.value_str()?).with_context(|| {
                 format!(
                     "failed to decode attr value as hex: {}",
                     &attr.value_str().unwrap()
@@ -576,7 +576,7 @@ pub fn find_hash_event(kind: &str, events: &[abci::Event]) -> Option<et::H256> {
                 }
             })
         })
-        .and_then(|a| hex::decode(&a.value_str().unwrap()).ok())
+        .and_then(|a| hex::decode(a.value_str().unwrap()).ok())
         .filter(|bz| bz.len() == 32)
         .map(|bz| et::H256::from_slice(&bz))
 }

@@ -155,15 +155,13 @@ pub fn to_finalize_block(
     power_table: PowerUpdates,
     app_hash: AppHash,
 ) -> anyhow::Result<response::FinalizeBlock> {
-    let validator_updates =
-        to_validator_updates(power_table.0).context("failed to convert validator updates")?;
-
     Ok(response::FinalizeBlock {
         events: to_events("event", ret.apply_ret.events, ret.emitters),
         tx_results,
-        validator_updates,
+        validator_updates: to_validator_updates(power_table.0)
+            .context("failed to convert validator updates")?,
         consensus_param_updates: Default::default(),
-        app_hash: app_hash,
+        app_hash,
     })
 }
 
