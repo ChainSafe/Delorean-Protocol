@@ -32,6 +32,12 @@ impl Actor {
     /// Add a new tag to the state to be signed by the validators
     /// Callable by anyone and designed to be called from Solidity contracts
     pub fn enqueue_tag(rt: &impl Runtime, params: EnqueueTagParams) -> Result<(), ActorError> {
+        println!(
+            "cetf actor enqueue_tag called by {} with tag {:?}",
+            rt.message().caller(),
+            params.tag
+        );
+
         rt.transaction(|st: &mut State, rt| {
             if st.enabled == false {
                 return Err(ActorError::forbidden(
