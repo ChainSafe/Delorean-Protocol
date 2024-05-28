@@ -9,7 +9,7 @@ use fvm_shared::address::Address;
 use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
-pub type BlockHeight = i64;
+pub type BlockHeight = u64;
 pub type Tag = [u8; 32];
 /// A BLS Public Key used for signing tags.
 #[derive(Deserialize, Serialize, Clone, Copy, Eq, PartialEq, Debug)]

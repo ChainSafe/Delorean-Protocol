@@ -474,7 +474,7 @@ where
             // Check for cetf tag
             let mut tags = vec![];
 
-            let cetf_tag = get_tag_at_height(db, &state_root, block_height as i64)
+            let cetf_tag = get_tag_at_height(db, &state_root, block_height)
                 .context("failed to get tag at height")?;
 
             tracing::info!(
@@ -562,7 +562,7 @@ where
                 .map(|sig_kind| match sig_kind {
                     SignatureKind::Cetf(_) => {
                         let db = db.clone();
-                        let tag = get_tag_at_height(db, &state_root, block_height as i64)
+                        let tag = get_tag_at_height(db, &state_root, block_height)
                             .context("failed to get tag at height")?
                             .ok_or_else(|| anyhow!("failed to get tag at height: None"))?;
 
@@ -806,6 +806,16 @@ where
         // TODO: I believe this is where we should aggregate the partial signatures from the previous block's
         // vote extensions (well technically in intepreter.prepare?) so that we can inject the aggregated
         // signature into a transaction to publish to the cetf actor so other contracts on chain can access it.
+        match request.local_last_commit {
+            Some(_info) => {
+                tracing::info!("Prepare proposal with local last commit:");
+            }
+            None => {
+                tracing::info!(
+                    "Prepare proposal with no local last commit i.e. no tags were signed"
+                );
+            }
+        }
 
         tracing::debug!(
             height = request.height.value(),

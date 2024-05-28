@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 use serde::{Deserialize, Serialize};
 
-use crate::{ipc::IpcMessage, signed::SignedMessage};
+use crate::{cetf::CetfMessage, ipc::IpcMessage, signed::SignedMessage};
 
 /// The different kinds of messages that can appear in blocks, ie. the transactions
 /// we can receive from Tendermint through the ABCI.
@@ -28,19 +28,23 @@ pub enum ChainMessage {
     /// Because of the involvement of data availability voting and CID resolution, these messages require support
     /// from the application, which is why they are handled in a special way.
     Ipc(IpcMessage),
+
+    Cetf(CetfMessage),
 }
 
 #[cfg(feature = "arb")]
 mod arb {
 
     use super::ChainMessage;
-    use crate::{ipc::IpcMessage, signed::SignedMessage};
+    use crate::{cetf::CetfMessage, ipc::IpcMessage, signed::SignedMessage};
 
     impl quickcheck::Arbitrary for ChainMessage {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-            match u8::arbitrary(g) % 2 {
+            match u8::arbitrary(g) % 3 {
                 0 => ChainMessage::Signed(SignedMessage::arbitrary(g)),
-                _ => ChainMessage::Ipc(IpcMessage::arbitrary(g)),
+                1 => ChainMessage::Ipc(IpcMessage::arbitrary(g)),
+                // _ => ChainMessage::Cetf(CetfMessage::arbitrary(g)),
+                _ => todo!(),
             }
         }
     }

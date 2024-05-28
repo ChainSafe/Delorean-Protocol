@@ -45,7 +45,7 @@ impl Actor {
                 ));
             }
             // NOTE: use of epoch is intentional here. In fendermint the epoch is the block height
-            st.add_tag_at_height(rt, &rt.curr_epoch(), &params.tag)?;
+            st.add_tag_at_height(rt, &(rt.curr_epoch() as u64), &params.tag)?;
             Ok(())
         })?;
 

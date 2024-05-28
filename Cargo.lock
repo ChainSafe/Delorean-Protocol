@@ -3333,6 +3333,7 @@ dependencies = [
  "cid",
  "ethers",
  "ethers-core",
+ "fendermint_actor_cetf",
  "fendermint_crypto",
  "fendermint_testing",
  "fendermint_vm_actor_interface",
