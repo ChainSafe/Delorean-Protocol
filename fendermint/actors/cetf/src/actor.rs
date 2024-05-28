@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use crate::state::State;
+use crate::AddSignedBlockHashTagParams;
+use crate::AddSignedBlockHeightTagParams;
 use crate::AddSignedTagParams;
 use crate::AddValidatorParams;
 use crate::{EnqueueTagParams, GetTagParams};
@@ -99,12 +101,40 @@ impl Actor {
     }
 
     pub fn add_signed_tag(rt: &impl Runtime, params: AddSignedTagParams) -> Result<(), ActorError> {
-        // TODO: Probaby want to restrict this to validators only
+        // TODO: Probaby want to restrict this to validators only or something
         log::info!("add_signed_tag called");
         rt.validate_immediate_caller_accept_any()?;
 
         rt.transaction(|st: &mut State, rt| {
             st.add_signed_tag_at_height(rt, &params.height, &params.signature)?;
+            Ok(())
+        })?;
+        Ok(())
+    }
+
+    pub fn add_signed_blockheight_tag(
+        rt: &impl Runtime,
+        params: AddSignedBlockHeightTagParams,
+    ) -> Result<(), ActorError> {
+        // TODO: Probaby want to restrict this to validators only or something
+        log::info!("add_signed_blockheight_tag called");
+        rt.validate_immediate_caller_accept_any()?;
+        rt.transaction(|st: &mut State, rt| {
+            st.add_signed_blockheight_tag_at_height(rt, &params.height, &params.signature)?;
+            Ok(())
+        })?;
+        Ok(())
+    }
+
+    pub fn add_signed_blockhash_tag(
+        rt: &impl Runtime,
+        params: AddSignedBlockHashTagParams,
+    ) -> Result<(), ActorError> {
+        // TODO: Probaby want to restrict this to validators only or something
+        log::info!("add_signed_blockhash_tag called");
+        rt.validate_immediate_caller_accept_any()?;
+        rt.transaction(|st: &mut State, rt| {
+            st.add_signed_blockhash_tag_at_height(rt, &params.hash, &params.signature)?;
             Ok(())
         })?;
         Ok(())
@@ -126,5 +156,7 @@ impl ActorCode for Actor {
         AddValidator => add_validator,
         Disable => disable,
         AddSignedTag => add_signed_tag,
+        AddSignedBlockHeightTag => add_signed_blockheight_tag,
+        AddSignedBlockHashTag => add_signed_blockhash_tag,
     }
 }
