@@ -11,8 +11,7 @@ use fvm::{
     engine::MultiEngine,
     executor::{ApplyFailure, ApplyKind, ApplyRet, DefaultExecutor, Executor},
     machine::{DefaultMachine, Machine, Manifest, NetworkConfig},
-    state_tree::StateTree,
-    DefaultKernel,
+    state_tree::StateTree, DefaultKernel,
 };
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::RawBytes;

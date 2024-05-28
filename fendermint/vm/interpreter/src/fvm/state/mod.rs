@@ -8,6 +8,7 @@ mod genesis;
 pub mod ipc;
 mod query;
 pub mod snapshot;
+pub mod cetf;
 
 use std::sync::Arc;
 

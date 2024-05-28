@@ -29,6 +29,7 @@ use fendermint_vm_interpreter::signed::InvalidSignature;
 use fendermint_vm_interpreter::{
     CheckInterpreter, ExecInterpreter, GenesisInterpreter, ProposalInterpreter, QueryInterpreter,
 };
+use fendermint_vm_interpreter::fvm::state::cetf::get_tag_at_height;
 use fendermint_vm_message::query::FvmQueryHeight;
 use fendermint_vm_snapshot::{SnapshotClient, SnapshotError};
 use fvm::engine::MultiEngine;
@@ -41,6 +42,7 @@ use num_traits::Zero;
 use serde::{Deserialize, Serialize};
 use tendermint::abci::request::CheckTxKind;
 use tendermint::abci::{request, response};
+use tendermint_rpc::endpoint::block_by_hash;
 use tracing::instrument;
 
 use crate::events::{NewBlock, ProposalProcessed};
@@ -429,6 +431,33 @@ where
         Output = BytesMessageQueryRes,
     >,
 {
+    async fn extend_vote(&self, request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
+        let db = self.state_store_clone();
+        // Note: Here a height of zero means to use the tip state
+        let (state_params, block_height) = self.state_params_at_height(0.into())?;
+        let block_height = block_height as i64;
+
+        let tag = get_tag_at_height(db, &state_params.state_root, &block_height)
+            .context("failed to get tag at height")?;
+
+        println!("ExtendVote found tag at height {}: {:?}", block_height, tag);
+
+        Ok(response::ExtendVote {
+            vote_extension: Default::default(),
+        })
+    }
+
+    async fn verify_vote_extension(
+        &self,
+        request: request::VerifyVoteExtension,
+    ) -> AbciResult<response::VerifyVoteExtension> {
+        if request.vote_extension.is_empty() {
+            Ok(response::VerifyVoteExtension::Accept)
+        } else {
+            Ok(response::VerifyVoteExtension::Reject)
+        }
+    }
+
     /// Provide information about the ABCI application.
     async fn info(&self, _request: request::Info) -> AbciResult<response::Info> {
         let state = self.committed_state()?;
