@@ -92,7 +92,6 @@ async fn main() {
     let pk = sk.public_key();
 
     let f1_addr = Address::new_secp256k1(&pk.serialize()).expect("valid public key");
-    let f410_addr = Address::from(EthAddress::from(pk));
 
     // Query the account nonce from the state, so it doesn't need to be passed as an arg.
     let sn = sequence(&client, &f1_addr)
