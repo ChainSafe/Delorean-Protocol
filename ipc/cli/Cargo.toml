@@ -46,3 +46,4 @@ ipc-wallet = { workspace = true }
 ipc-provider = { workspace = true }
 ipc-api = { workspace = true }
 ipc-types = { workspace = true }
+tracing-subscriber.workspace = true
