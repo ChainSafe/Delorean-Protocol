@@ -41,3 +41,4 @@ tracing-subscriber = { workspace = true }
 fendermint_rpc = { path = "../../rpc" }
 fendermint_vm_genesis = { path = "../../vm/genesis" }
 fendermint_actor_cetf = { path = "../../actors/cetf" }
+bls-signatures = { version = "0.15.0", default-features = false, features = ["blst"] }

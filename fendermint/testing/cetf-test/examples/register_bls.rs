@@ -14,6 +14,7 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context};
+use bls_signatures::Serialize;
 use clap::Parser;
 use fendermint_actor_cetf as cetf_actor;
 use fendermint_rpc::query::QueryClient;
@@ -91,6 +92,17 @@ async fn main() {
 
     let pk = sk.public_key();
 
+    let bls_sk = {
+        let b64 =
+            std::fs::read_to_string(&opts.bls_secret_key).expect("failed to read bls secret key");
+        bls_signatures::PrivateKey::from_bytes(
+            &fendermint_crypto::from_b64(&b64).expect("failed to decode b64 bls secret key"),
+        )
+        .expect("failed to parse bls secret key")
+    };
+
+    let bls_pk = bls_sk.public_key();
+
     let f1_addr = Address::new_secp256k1(&pk.serialize()).expect("valid public key");
 
     // Query the account nonce from the state, so it doesn't need to be passed as an arg.
@@ -116,7 +128,12 @@ async fn main() {
         cetf_actor::Method::AddValidator as u64,
         RawBytes::serialize(cetf_actor::AddValidatorParams {
             address: f1_addr,
-            public_key: fendermint_actor_cetf::BlsPublicKey([0u8; 48]),
+            public_key: fendermint_actor_cetf::BlsPublicKey(
+                bls_pk
+                    .as_bytes()
+                    .try_into()
+                    .expect("Failed to convert BLS public key to bytes"),
+            ),
         })
         .expect("failed to serialize add validator params"),
         TokenAmount::from_whole(0),

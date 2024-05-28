@@ -2959,6 +2959,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.21.7",
+ "bls-signatures",
  "bytes",
  "cid",
  "clap 4.5.4",
