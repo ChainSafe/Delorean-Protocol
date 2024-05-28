@@ -80,6 +80,21 @@ pub enum SignatureKind {
 }
 
 impl SignatureKind {
+    pub fn to_vec(&self) -> Vec<u8> {
+        match self {
+            SignatureKind::Cetf(sig) => sig.0.to_vec(),
+            SignatureKind::BlockHash(sig) => sig.0.to_vec(),
+            SignatureKind::BlockHeight(sig) => sig.0.to_vec(),
+        }
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        match self {
+            SignatureKind::Cetf(sig) => sig.0.as_slice(),
+            SignatureKind::BlockHash(sig) => sig.0.as_slice(),
+            SignatureKind::BlockHeight(sig) => sig.0.as_slice(),
+        }
+    }
     pub fn to_bls_signature(&self) -> anyhow::Result<bls_signatures::Signature> {
         match self {
             SignatureKind::Cetf(sig) => bls_signatures::Signature::from_bytes(&sig.0),

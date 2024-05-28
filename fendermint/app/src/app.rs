@@ -11,6 +11,7 @@ use crate::{tmconv::*, VERSION};
 use anyhow::{anyhow, Context, Result};
 use async_stm::{atomically, atomically_or_err};
 use async_trait::async_trait;
+use bls_signatures::Serialize as _;
 use cid::Cid;
 use fendermint_abci::util::take_until_max_size;
 use fendermint_abci::{AbciResult, Application};
@@ -808,6 +809,7 @@ where
         // signature into a transaction to publish to the cetf actor so other contracts on chain can access it.
         match request.local_last_commit {
             Some(info) => {
+                // TODO: Better error handling
                 let votes = info
                     .votes
                     .into_iter()
@@ -820,23 +822,54 @@ where
                     })
                     .flatten()
                     .collect::<Vec<_>>();
-                let cetf_tags = votes
+                let cetf_sigs = votes
                     .iter()
                     .filter(|t| matches!(t, SignatureKind::Cetf(_)))
-                    .collect::<Vec<_>>();
+                    .map(SignatureKind::as_slice)
+                    .map(bls_signatures::Signature::from_bytes)
+                    .collect::<Result<Vec<_>, bls_signatures::Error>>()
+                    .unwrap();
                 let height_tags = votes
                     .iter()
                     .filter(|t| matches!(t, SignatureKind::BlockHeight(_)))
-                    .collect::<Vec<_>>();
+                    .map(SignatureKind::as_slice)
+                    .map(bls_signatures::Signature::from_bytes)
+                    .collect::<Result<Vec<_>, bls_signatures::Error>>()
+                    .unwrap();
                 let hash_tags = votes
                     .iter()
                     .filter(|t| matches!(t, SignatureKind::BlockHash(_)))
-                    .collect::<Vec<_>>();
+                    .map(SignatureKind::as_slice)
+                    .map(bls_signatures::Signature::from_bytes)
+                    .collect::<Result<Vec<_>, bls_signatures::Error>>()
+                    .unwrap();
+
+                let agg_cetf_sig = if !cetf_sigs.is_empty() {
+                    Some(bls_signatures::aggregate(&cetf_sigs).unwrap())
+                } else {
+                    None
+                };
+                let agg_height_sig = if !height_tags.is_empty() {
+                    Some(bls_signatures::aggregate(&height_tags).unwrap())
+                } else {
+                    None
+                };
+                let agg_hash_sig = if !hash_tags.is_empty() {
+                    Some(bls_signatures::aggregate(&hash_tags).unwrap())
+                } else {
+                    None
+                };
+                tracing::info!(
+                    "Aggregation result: cetf_sig: {:?}, height_sig: {:?}, hash_sig: {:?}",
+                    agg_cetf_sig,
+                    agg_height_sig,
+                    agg_hash_sig
+                );
                 tracing::info!(
                     "Prepare Proposal! height_tags: {}, hash_tags: {}, cetf_tags: {}",
                     height_tags.len(),
                     hash_tags.len(),
-                    cetf_tags.len(),
+                    cetf_sigs.len(),
                 );
             }
             None => {
