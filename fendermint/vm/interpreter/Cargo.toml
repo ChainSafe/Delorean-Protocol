@@ -38,10 +38,10 @@ anyhow = { workspace = true }
 ethers = { workspace = true }
 hex = { workspace = true }
 num-traits = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"]}
 serde_with = { workspace = true }
 serde_json = { workspace = true }
-tendermint = { workspace = true }
+tendermint = { workspace = true, features = ["rust-crypto"] }
 tendermint-rpc = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
@@ -65,6 +65,7 @@ arbitrary = { workspace = true, optional = true }
 quickcheck = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 ambassador = { workspace = true }
+k256 = { workspace = true }
 
 [dev-dependencies]
 quickcheck = { workspace = true }

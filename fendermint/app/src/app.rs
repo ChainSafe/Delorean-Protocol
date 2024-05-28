@@ -436,8 +436,14 @@ where
     >,
     I: ExtendVoteInterpreter<
         State = FvmQueryState<SS>,
-        Message = Tag,
-        Output = Option<bls_signatures::Signature>,
+        ExtendMessage = Tag,
+        ExtendOutput = Option<bls_signatures::Signature>,
+        VerifyMessage = (
+            tendermint::account::Id,
+            Vec<u8>,
+            Option<bls_signatures::Signature>,
+        ),
+        VerifyOutput = Option<bool>,
     >,
 {
     async fn extend_vote(&self, request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
@@ -453,12 +459,6 @@ where
             });
         }
         let state_root = state_params.state_root;
-        // if !Self::can_query_state(block_height, &state_params) {
-        //     return Ok(invalid_query(
-        //         AppError::NotInitialized,
-        //         "The app hasn't been initialized yet.".to_owned(),
-        //     ));
-        // }
 
         tracing::info!(
             "extend_vote Creating FvmQueryState at height: {}",
@@ -479,6 +479,8 @@ where
         let tag = get_tag_at_height(db, &state_root, block_height as i64)
             .context("failed to get tag at height")?;
         tracing::info!("ExtendVote found tag at height {}: {:?}", block_height, tag);
+
+        // TODO: Testing out signing and verification on the block hash
         let t: Option<[u8; 32]> = Some(
             request
                 .hash
@@ -487,22 +489,19 @@ where
                 .context("failed to convert hash")?,
         );
         if let Some(tag) = t {
-            // let signature = self
-            //     .interpreter
-            //     .extend_vote(state, tag)
-            //     .await
-            //     .context("failed to extend vote")?;
-            // match signature {
-            //     Some(sig) => Ok(response::ExtendVote {
-            //         vote_extension: sig.as_bytes().into(),
-            //     }),
-            //     None => Ok(response::ExtendVote {
-            //         vote_extension: Default::default(),
-            //     }),
-            // }
-            Ok(response::ExtendVote {
-                vote_extension: tag.to_vec().into(),
-            })
+            let signature = self
+                .interpreter
+                .extend_vote(state, tag)
+                .await
+                .context("failed to extend vote")?;
+            match signature {
+                Some(sig) => Ok(response::ExtendVote {
+                    vote_extension: sig.as_bytes().into(),
+                }),
+                None => Ok(response::ExtendVote {
+                    vote_extension: Default::default(),
+                }),
+            }
         } else {
             return Ok(response::ExtendVote {
                 vote_extension: Default::default(),
@@ -518,49 +517,48 @@ where
             tracing::info!("Verify vote extension at height 0. Skipping.");
             return Ok(response::VerifyVoteExtension::Accept);
         }
-        if request.vote_extension.as_ref() == request.hash.as_ref() {
-            tracing::info!(
-                "Vote extension detected: {:?}",
-                request.vote_extension.as_ref()
-            );
 
-            let db = self.state_store_clone();
-            let height = FvmQueryHeight::from(0);
-            let (state_params, block_height) = self.state_params_at_height(height)?;
-            let state_root = state_params.state_root;
-            // if !Self::can_query_state(block_height, &state_params) {
-            //     return Ok(invalid_query(
-            //         AppError::NotInitialized,
-            //         "The app hasn't been initialized yet.".to_owned(),
-            //     ));
-            // }
-            tracing::info!(
-                "verify_vote_extension Creating FvmQueryState at height: {}",
-                block_height
-            );
-            let state = FvmQueryState::new(
-                db,
-                self.multi_engine.clone(),
-                block_height.try_into()?,
-                state_params,
-                self.check_state.clone(),
-                height == FvmQueryHeight::Pending,
-            )?;
-
-            self.interpreter
-                .verify_vote_extension(state, request.hash.as_ref().try_into()?)
-                .await?;
-            Ok(response::VerifyVoteExtension::Accept)
-        } else if request.vote_extension.is_empty() {
+        if request.vote_extension.is_empty() {
             tracing::info!("Vote extension empty");
-            Ok(response::VerifyVoteExtension::Accept)
-        } else {
-            tracing::info!(
-                "Incorrect vote extension: {:?} != {:?}",
-                request.vote_extension,
-                request.hash
-            );
-            Ok(response::VerifyVoteExtension::Reject)
+            return Ok(response::VerifyVoteExtension::Accept);
+        }
+
+        tracing::info!(
+            "Vote extension detected: {:?}",
+            request.vote_extension.as_ref()
+        );
+
+        let db = self.state_store_clone();
+        let height = FvmQueryHeight::from(0);
+        let (state_params, block_height) = self.state_params_at_height(height)?;
+        let state_root = state_params.state_root;
+
+        tracing::info!(
+            "verify_vote_extension Creating FvmQueryState at height: {}",
+            block_height
+        );
+        let state = FvmQueryState::new(
+            db,
+            self.multi_engine.clone(),
+            block_height.try_into()?,
+            state_params,
+            self.check_state.clone(),
+            height == FvmQueryHeight::Pending,
+        )?;
+        let id = request.validator_address;
+        let msg = request.hash.as_ref().to_vec();
+        let sig = bls_signatures::Signature::from_bytes(&request.vote_extension)
+            .context("failed to convert signature")?;
+
+        let (_, res) = self
+            .interpreter
+            .verify_vote_extension(state, (id, msg, Some(sig)))
+            .await?;
+
+        match res {
+            Some(true) => Ok(response::VerifyVoteExtension::Accept),
+            Some(false) => Ok(response::VerifyVoteExtension::Reject),
+            None => Ok(response::VerifyVoteExtension::Accept),
         }
     }
 
