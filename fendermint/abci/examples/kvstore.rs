@@ -10,7 +10,7 @@ use fendermint_abci::{
 use structopt::StructOpt;
 use tendermint::abci::{request, response, Event, EventAttributeIndexExt};
 use tower::ServiceBuilder;
-use tower_abci::{split, v037::Server};
+use tower_abci::{v038::split, v038::Server};
 use tracing::{info, Level};
 
 // For the sake of example, sho the relationship between buffering, concurrency and block size.
@@ -94,33 +94,43 @@ impl Application for KVStore {
         }
     }
 
-    async fn deliver_tx(&self, request: request::DeliverTx) -> Result<response::DeliverTx> {
-        let tx = String::from_utf8(request.tx.to_vec()).unwrap();
-        let (key, value) = match tx.split('=').collect::<Vec<_>>() {
-            k if k.len() == 1 => (k[0], k[0]),
-            kv => (kv[0], kv[1]),
-        };
+    async fn finalize_block(
+        &self,
+        request: request::FinalizeBlock,
+    ) -> Result<response::FinalizeBlock> {
+        let mut events = vec![];
+        for tx in request.txs.iter() {
+            let tx = String::from_utf8(tx.to_vec()).unwrap();
+            let (key, value) = match tx.split('=').collect::<Vec<_>>() {
+                k if k.len() == 1 => (k[0], k[0]),
+                kv => (kv[0], kv[1]),
+            };
 
-        atomically(|| {
-            self.store.update(|mut store| {
-                store.insert(key.into(), value.into());
-                store
+            atomically(|| {
+                self.store.update(|mut store| {
+                    store.insert(key.into(), value.into());
+                    store
+                })
             })
-        })
-        .await;
+            .await;
 
-        info!(?key, ?value, "update");
+            info!(?key, ?value, "update");
 
-        Ok(response::DeliverTx {
-            events: vec![Event::new(
+            events.push(Event::new(
                 "app",
                 vec![
                     ("key", key).index(),
                     ("index_key", "index is working").index(),
                     ("noindex_key", "index is working").no_index(),
                 ],
-            )],
-            ..Default::default()
+            ));
+        }
+        Ok(response::FinalizeBlock {
+            events: events,
+            tx_results: vec![Default::default(); request.txs.len()],
+            validator_updates: vec![],
+            consensus_param_updates: None,
+            app_hash: Default::default(),
         })
     }
 
@@ -203,7 +213,7 @@ async fn main() {
 
     // Run the ABCI server.
     server
-        .listen(format!("{}:{}", opt.host, opt.port))
+        .listen_tcp(format!("{}:{}", opt.host, opt.port))
         .await
         .unwrap();
 }

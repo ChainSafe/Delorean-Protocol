@@ -237,6 +237,10 @@ where
         self.params.app_version
     }
 
+    pub fn params(&self) -> &FvmUpdatableParams {
+        &self.params
+    }
+
     /// Get a mutable reference to the underlying [StateTree].
     pub fn state_tree_mut(&mut self) -> &mut StateTree<MachineBlockstore<DB>> {
         self.executor.state_tree_mut()

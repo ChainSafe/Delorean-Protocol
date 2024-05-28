@@ -91,7 +91,7 @@ ETHAPI_CONTAINER_NAME = "${NODE_NAME}-ethapi"
 PROMTAIL_CONTAINER_NAME="${NODE_NAME}-promtail"
 
 
-CMT_DOCKER_IMAGE = "cometbft/cometbft:v0.37.x"
+CMT_DOCKER_IMAGE = "cometbft/cometbft:v0.38.x"
 FM_DOCKER_TAG = "latest"
 FM_DOCKER_IMAGE = "fendermint:${FM_DOCKER_TAG}"
 FM_REMOTE_DOCKER_IMAGE = "ghcr.io/consensus-shipyard/fendermint:${FM_DOCKER_TAG}"
