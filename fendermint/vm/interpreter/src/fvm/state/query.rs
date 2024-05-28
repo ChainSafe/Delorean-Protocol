@@ -19,6 +19,7 @@ use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::CborStore;
 use fvm_shared::{address::Address, chainid::ChainID, clock::ChainEpoch, ActorID};
 use num_traits::Zero;
+use serde::de;
 
 use crate::fvm::{store::ReadOnlyBlockstore, FvmMessage};
 
@@ -27,7 +28,7 @@ use super::{CheckStateRef, FvmExecState, FvmStateParams};
 /// The state over which we run queries. These can interrogate the IPLD block store or the state tree.
 pub struct FvmQueryState<DB>
 where
-    DB: Blockstore + Clone + 'static,
+    DB: CborStore + Blockstore + Clone + 'static,
 {
     /// A read-only wrapper around the blockstore, to make sure we aren't
     /// accidentally committing any state. Any writes by the FVM will be
@@ -150,6 +151,14 @@ where
     /// Read a CID from the underlying IPLD store.
     pub fn store_get(&self, key: &Cid) -> anyhow::Result<Option<Vec<u8>>> {
         self.store.get(key)
+    }
+
+    pub fn store_get_cbor<T: de::DeserializeOwned>(&self, key: &Cid) -> anyhow::Result<Option<T>> {
+        self.store.get_cbor(key)
+    }
+
+    pub fn read_only_store(&self) -> &ReadOnlyBlockstore<DB> {
+        &self.store
     }
 
     /// Get the state of an actor, if it exists.

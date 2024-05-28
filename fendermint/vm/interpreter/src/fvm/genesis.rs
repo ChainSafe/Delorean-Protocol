@@ -246,15 +246,16 @@ where
                 None,
             )
             .context("failed to create chainmetadata actor")?;
+        let cetf_state = fendermint_actor_cetf::State::new(&state.store())?;
         state
             .create_custom_actor(
                 fendermint_actor_cetf::CETF_ACTOR_NAME,
                 cetf::CETFSYSCALL_ACTOR_ID,
-                &EMPTY_ARR,
+                &cetf_state,
                 TokenAmount::zero(),
                 None,
             )
-            .context("failed to create customsyscall actor")?;
+            .context("failed to create cetf actor")?;
         let eam_state = fendermint_actor_eam::State::new(
             state.store(),
             PermissionModeParams::from(genesis.eam_permission_mode),

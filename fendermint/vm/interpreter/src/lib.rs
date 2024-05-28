@@ -35,7 +35,11 @@ pub trait ExtendVoteInterpreter: Sync + Send {
     type Output;
 
     /// Sign the vote.
-    fn extend_vote(&self, state: Self::State, msg: Self::Message) -> anyhow::Result<Self::Output>;
+    async fn extend_vote(
+        &self,
+        state: Self::State,
+        msg: Self::Message,
+    ) -> anyhow::Result<Self::Output>;
 
     async fn verify_vote_extension(
         &self,

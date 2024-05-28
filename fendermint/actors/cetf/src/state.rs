@@ -17,16 +17,20 @@ pub struct State {
     pub tag_map: Cid,    // HAMT[BlockHeight] => Tag
     pub validators: Cid, // HAMT[Address] => BlsPublicKey (Assumes static validator set)
     pub enabled: bool,
+    pub signed_tags: Cid, // HAMT[BlockHeight] => BlsSignature(bytes 48)
 }
 
 impl State {
     pub fn new<BS: Blockstore>(store: &BS) -> Result<State, ActorError> {
         let tag_map = { TagMap::empty(store, DEFAULT_HAMT_CONFIG, "empty tag_map").flush()? };
         let validators = { TagMap::empty(store, DEFAULT_HAMT_CONFIG, "empty validators").flush()? };
+        let signed_tags =
+            { TagMap::empty(store, DEFAULT_HAMT_CONFIG, "empty signed_tags").flush()? };
         Ok(State {
             tag_map,
             validators,
             enabled: false,
+            signed_tags,
         })
     }
 
@@ -71,5 +75,17 @@ impl State {
     ) -> Result<Option<Tag>, ActorError> {
         let tag_map = TagMap::load(store, &self.tag_map, DEFAULT_HAMT_CONFIG, "reading tag_map")?;
         Ok(tag_map.get(&height)?.copied())
+    }
+
+    pub fn get_validators_keymap<BS: Blockstore>(
+        &self,
+        store: BS,
+    ) -> Result<ValidatorBlsPublicKeyMap<BS>, ActorError> {
+        ValidatorBlsPublicKeyMap::load(
+            store,
+            &self.validators,
+            DEFAULT_HAMT_CONFIG,
+            "reading validators",
+        )
     }
 }

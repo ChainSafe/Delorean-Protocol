@@ -347,7 +347,7 @@ where
 /// This is prone to failing, e.g. one theory is that CometBFT is trying to restart
 /// the application, and while doing that it does not open up its HTTP services,
 /// leading to a chicken-and-egg problem of failing to start.
-async fn bft_power_table<C>(client: &C, height: Height) -> anyhow::Result<PowerTable>
+pub(crate) async fn bft_power_table<C>(client: &C, height: Height) -> anyhow::Result<PowerTable>
 where
     C: Client + Sync + Send + 'static,
 {

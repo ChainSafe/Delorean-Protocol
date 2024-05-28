@@ -12,6 +12,7 @@ use anyhow::{anyhow, Context, Result};
 use async_stm::{atomically, atomically_or_err};
 use async_trait::async_trait;
 use bls_signatures::Serialize as _;
+use bytes::Bytes;
 use cid::Cid;
 use fendermint_abci::util::take_until_max_size;
 use fendermint_abci::{AbciResult, Application};
@@ -24,7 +25,6 @@ use fendermint_vm_interpreter::bytes::{
     BytesMessageApplyRes, BytesMessageCheckRes, BytesMessageQuery, BytesMessageQueryRes,
 };
 use fendermint_vm_interpreter::chain::{ChainEnv, ChainMessageApplyRet, IllegalMessage};
-use fendermint_vm_interpreter::fvm::extend::ExtendVoteKind;
 use fendermint_vm_interpreter::fvm::state::cetf::get_tag_at_height;
 use fendermint_vm_interpreter::fvm::state::{
     empty_state_tree, CheckStateRef, FvmExecState, FvmGenesisState, FvmQueryState, FvmStateParams,
@@ -49,6 +49,7 @@ use num_traits::Zero;
 use serde::{Deserialize, Serialize};
 use tendermint::abci::request::CheckTxKind;
 use tendermint::abci::{request, response};
+use tendermint::crypto::default::signature;
 use tendermint_rpc::endpoint::block_by_hash;
 use tracing::instrument;
 
@@ -435,11 +436,11 @@ where
     >,
     I: ExtendVoteInterpreter<
         State = FvmQueryState<SS>,
-        Message = ExtendVoteKind,
+        Message = Tag,
         Output = Option<bls_signatures::Signature>,
     >,
 {
-    async fn extend_vote(&self, _request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
+    async fn extend_vote(&self, request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
         let db = self.state_store_clone();
         let height = FvmQueryHeight::from(0);
         let (state_params, block_height) = self.state_params_at_height(height)?;
@@ -465,21 +466,35 @@ where
         let db = self.state_store_clone();
         let tag = get_tag_at_height(db, &state_root, block_height as i64)
             .context("failed to get tag at height")?;
-
         tracing::info!("ExtendVote found tag at height {}: {:?}", block_height, tag);
-        let signature = tag.map(|tag| {
-            self.interpreter
-                .extend_vote(state, ExtendVoteKind::Tag(tag))
-        });
-
-        match signature {
-            Some(Ok(Some(sig))) => Ok(response::ExtendVote {
-                vote_extension: sig.as_bytes().into(),
-            }),
-            Some(Ok(None)) | None => Ok(response::ExtendVote {
+        let t: Option<[u8; 32]> = Some(
+            request
+                .hash
+                .as_ref()
+                .try_into()
+                .context("failed to convert hash")?,
+        );
+        if let Some(tag) = t {
+            // let signature = self
+            //     .interpreter
+            //     .extend_vote(state, tag)
+            //     .await
+            //     .context("failed to extend vote")?;
+            // match signature {
+            //     Some(sig) => Ok(response::ExtendVote {
+            //         vote_extension: sig.as_bytes().into(),
+            //     }),
+            //     None => Ok(response::ExtendVote {
+            //         vote_extension: Default::default(),
+            //     }),
+            // }
+            Ok(response::ExtendVote {
+                vote_extension: tag.to_vec().into(),
+            })
+        } else {
+            return Ok(response::ExtendVote {
                 vote_extension: Default::default(),
-            }),
-            Some(Err(e)) => Err(e.context("failed to extend vote").into()),
+            });
         }
     }
 
@@ -491,10 +506,21 @@ where
         // 1. Get the BLS pubkey from some on-chain mapping from validators secp256k1 pubkey -> BLS pubkey.
         // 2. Verify the signature using the BLS pubkey against tag (get from state).
         // 3. Do some other checks e.g. is every tag signed? Because if not we reject. I think we want EVERY tag signed (assuming multiple)
-        if request.vote_extension.is_empty() {
+        if request.vote_extension.as_ref() == request.hash.as_ref() {
+            tracing::info!(
+                "Vote extension detected: {:?}",
+                request.vote_extension.as_ref()
+            );
+            Ok(response::VerifyVoteExtension::Accept)
+        } else if request.vote_extension.is_empty() {
+            tracing::info!("Vote extension empty");
             Ok(response::VerifyVoteExtension::Accept)
         } else {
-            tracing::debug!("Shouldnt be anything to sign right now");
+            tracing::info!(
+                "Incorrect vote extension: {:?} != {:?}",
+                request.vote_extension,
+                request.hash
+            );
             Ok(response::VerifyVoteExtension::Reject)
         }
     }

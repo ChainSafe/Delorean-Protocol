@@ -2953,6 +2953,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "fendermint_cetf_test"
+version = "0.1.0"
+
+[[package]]
 name = "fendermint_contract_test"
 version = "0.1.0"
 dependencies = [
