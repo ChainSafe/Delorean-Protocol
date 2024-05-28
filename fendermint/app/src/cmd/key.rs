@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use anyhow::{anyhow, Context};
+use bls_signatures::Serialize;
 use fendermint_app_options::key::KeyShowPeerIdArgs;
 use fendermint_crypto::{from_b64, to_b64, PublicKey, SecretKey};
 use fendermint_vm_actor_interface::eam::EthAddress;
@@ -58,14 +59,20 @@ cmd! {
     }
 }
 
+// TODO: Actually use this key. For now we just generate keys at genesis.
 cmd! {
   KeyGenArgs(self) {
     let mut rng = ChaCha20Rng::from_entropy();
     let sk = SecretKey::random(&mut rng);
     let pk = sk.public_key();
 
+    let bls_sk = bls_signatures::PrivateKey::generate(&mut rng);
+    let bls_pk = bls_sk.public_key();
+
     export(&self.out_dir, &self.name, "sk", &secret_to_b64(&sk))?;
     export(&self.out_dir, &self.name, "pk", &public_to_b64(&pk))?;
+    export(&self.out_dir,  &self.name, "bls.sk", &to_b64(&bls_sk.as_bytes()))?;
+    export(&self.out_dir,  &self.name, "bls.pk", &to_b64(&bls_pk.as_bytes()))?;
 
     Ok(())
   }
@@ -159,6 +166,12 @@ fn b64_to_secret(b64: &str) -> anyhow::Result<SecretKey> {
     Ok(sk)
 }
 
+fn b64_to_bls_secret(b64: &str) -> anyhow::Result<bls_signatures::PrivateKey> {
+    let bz = from_b64(b64)?;
+    let sk = bls_signatures::PrivateKey::from_bytes(&bz)?;
+    Ok(sk)
+}
+
 pub fn read_public_key(public_key: &Path) -> anyhow::Result<PublicKey> {
     let b64 = std::fs::read_to_string(public_key).context("failed to read public key")?;
     let pk = b64_to_public(&b64).context("failed to parse public key")?;
@@ -179,6 +192,12 @@ pub fn read_secret_key_hex(private_key: &Path) -> anyhow::Result<SecretKey> {
 pub fn read_secret_key(secret_key: &Path) -> anyhow::Result<SecretKey> {
     let b64 = std::fs::read_to_string(secret_key).context("failed to read secret key")?;
     let sk = b64_to_secret(&b64).context("failed to parse secret key")?;
+    Ok(sk)
+}
+
+pub fn read_bls_secret_key(secret_key: &Path) -> anyhow::Result<bls_signatures::PrivateKey> {
+    let b64 = std::fs::read_to_string(secret_key).context("failed to read secret key")?;
+    let sk = b64_to_bls_secret(&b64).context("failed to parse secret key")?;
     Ok(sk)
 }
 

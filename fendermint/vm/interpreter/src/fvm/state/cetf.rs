@@ -1,3 +1,5 @@
+// Copyright 2022-2024 Protocol Labs
+// SPDX-License-Identifier: Apache-2.0, MIT
 use crate::fvm::store::ReadOnlyBlockstore;
 use anyhow::anyhow;
 use cid::Cid;
@@ -11,7 +13,7 @@ use fvm_ipld_encoding::CborStore;
 pub fn get_tag_at_height<DB: Blockstore + Clone + 'static>(
     db: DB,
     state_root: &Cid,
-    height: &BlockHeight,
+    height: BlockHeight,
 ) -> anyhow::Result<Option<Tag>> {
     let bstore = ReadOnlyBlockstore::new(db);
     let state_tree = StateTree::new_from_root(&bstore, state_root)?;
@@ -53,5 +55,5 @@ pub fn get_tag_at_height<DB: Blockstore + Clone + 'static>(
             }
         };
 
-    Ok(actor_state.get_tag_at_height(&bstore, height)?)
+    Ok(actor_state.get_tag_at_height(&bstore, &height)?)
 }

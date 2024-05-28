@@ -37,7 +37,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tower::ServiceBuilder;
 use tracing::info;
 
-use crate::cmd::key::read_secret_key;
+use crate::cmd::key::{read_bls_secret_key, read_secret_key};
 use crate::{cmd, options::run::RunArgs, settings::Settings};
 
 cmd! {
@@ -97,6 +97,26 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
         }
     };
 
+    let bls_private_key = match settings.bls_signing_key {
+        Some(ref key) => {
+            let sk = key.path(settings.home_dir());
+            if sk.exists() && sk.is_file() {
+                let sk = read_bls_secret_key(&sk).context("failed to read BLS key")?;
+                tracing::info!(
+                    "cetf signing key detected with public key: {:#?}",
+                    sk.public_key()
+                );
+                Some(sk)
+            } else {
+                bail!("cetf signing key does not exist: {}", sk.to_string_lossy());
+            }
+        }
+        None => {
+            tracing::debug!("cetf signing key not configured");
+            None
+        }
+    };
+
     let validator_keypair = validator.as_ref().map(|(sk, _)| {
         let mut bz = sk.serialize();
         let sk = libp2p::identity::secp256k1::SecretKey::try_from_bytes(&mut bz)
@@ -119,7 +139,7 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
         .with_max_retries(settings.broadcast.max_retries)
         .with_retry_delay(settings.broadcast.retry_delay);
 
-        ValidatorContext::new(sk, broadcaster)
+        ValidatorContext::new(sk, bls_private_key.unwrap(), broadcaster)
     });
 
     let testing_settings = match settings.testing.as_ref() {

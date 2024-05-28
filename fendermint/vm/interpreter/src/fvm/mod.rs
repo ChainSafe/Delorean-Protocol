@@ -6,6 +6,7 @@ mod broadcast;
 mod check;
 mod checkpoint;
 mod exec;
+pub mod extend;
 mod externs;
 mod genesis;
 mod query;
@@ -39,20 +40,35 @@ pub struct ValidatorContext<C> {
     secret_key: SecretKey,
     /// The public key identifying the validator (corresponds to the secret key.)
     public_key: PublicKey,
+    /// BLS secret key used for signing CETF tags
+    bls_secret_key: bls_signatures::PrivateKey,
+    /// BLS public key used for verifying CETF tags
+    bls_public_key: bls_signatures::PublicKey,
     /// Used to broadcast transactions. It might use a different secret key for
     /// signing transactions than the validator's block producing key.
     broadcaster: Broadcaster<C>,
 }
 
 impl<C> ValidatorContext<C> {
-    pub fn new(secret_key: SecretKey, broadcaster: Broadcaster<C>) -> Self {
+    pub fn new(
+        secret_key: SecretKey,
+        bls_secret_key: bls_signatures::PrivateKey,
+        broadcaster: Broadcaster<C>,
+    ) -> Self {
         // Derive the public keys so it's available to check whether this node is a validator at any point in time.
         let public_key = secret_key.public_key();
+        let bls_public_key = bls_secret_key.public_key();
         Self {
             secret_key,
             public_key,
+            bls_secret_key,
+            bls_public_key,
             broadcaster,
         }
+    }
+
+    pub fn sign_tag(&self, tag: &[u8]) -> bls_signatures::Signature {
+        self.bls_secret_key.sign(tag)
     }
 }
 
