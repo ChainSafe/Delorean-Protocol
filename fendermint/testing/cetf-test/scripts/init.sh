@@ -19,6 +19,17 @@ fendermint \
     --timestamp 1680101412 \
     --power-scale 0
 
+# Create some Ethereum accounts
+for NAME in emily eric; do
+  fendermint key gen --out-dir $KEYS_DIR --name $NAME;
+  fendermint key into-eth --out-dir $KEYS_DIR --secret-key $KEYS_DIR/$NAME.sk --name $NAME-eth;
+  fendermint \
+    genesis --genesis-file $GENESIS_FILE \
+    add-account --public-key $KEYS_DIR/$NAME.pk \
+                --balance 1000 \
+                --kind ethereum
+done
+
 # Create some validators
 mkdir -p $KEYS_DIR
 for NAME in veronica victoria vivienne volvo; do
