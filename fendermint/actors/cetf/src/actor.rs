@@ -2,18 +2,19 @@
 // Copyright 2021-2023 BadBoi Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use fil_actors_runtime::actor_dispatch;
-use fil_actors_runtime::actor_error;
-use fil_actors_runtime::builtin::singletons::SYSTEM_ACTOR_ADDR;
-use fil_actors_runtime::runtime::{ActorCode, Runtime};
-use fil_actors_runtime::ActorError;
-
 use crate::state::State;
 use crate::AddSignedTagParams;
 use crate::AddValidatorParams;
 use crate::{EnqueueTagParams, GetTagParams};
 use crate::{Method, CETF_ACTOR_NAME};
+use fil_actors_runtime::actor_dispatch;
+use fil_actors_runtime::actor_error;
+use fil_actors_runtime::builtin::singletons::SYSTEM_ACTOR_ADDR;
+use fil_actors_runtime::runtime::{ActorCode, Runtime};
+use fil_actors_runtime::ActorError;
+use fvm_shared::ActorID;
 
+// Note for myself: trampoline initializes a logger if debug mode is enabled.
 fil_actors_runtime::wasm_trampoline!(Actor);
 
 pub struct Actor;
