@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use tendermint::block::Height;
 
 use fendermint_vm_actor_interface::{
-    cetf::{self, CETFSYSCALL_ACTOR_ADDR, CETFSYSCALL_ACTOR_ID},
+    cetf::{CETFSYSCALL_ACTOR_ADDR, CETFSYSCALL_ACTOR_ID},
     chainmetadata, cron, system,
 };
 use fvm::executor::ApplyRet;

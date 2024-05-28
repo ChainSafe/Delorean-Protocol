@@ -11,8 +11,6 @@ use crate::{tmconv::*, VERSION};
 use anyhow::{anyhow, Context, Result};
 use async_stm::{atomically, atomically_or_err};
 use async_trait::async_trait;
-use bls_signatures::Serialize as _;
-use bytes::Bytes;
 use cid::Cid;
 use fendermint_abci::util::take_until_max_size;
 use fendermint_abci::{AbciResult, Application};
@@ -25,6 +23,7 @@ use fendermint_vm_interpreter::bytes::{
     BytesMessageApplyRes, BytesMessageCheckRes, BytesMessageQuery, BytesMessageQueryRes,
 };
 use fendermint_vm_interpreter::chain::{ChainEnv, ChainMessageApplyRet, IllegalMessage};
+use fendermint_vm_interpreter::fvm::extend::{SignatureKind, SignedTags, TagKind, Tags};
 use fendermint_vm_interpreter::fvm::state::cetf::get_tag_at_height;
 use fendermint_vm_interpreter::fvm::state::{
     empty_state_tree, CheckStateRef, FvmExecState, FvmGenesisState, FvmQueryState, FvmStateParams,
@@ -41,6 +40,7 @@ use fendermint_vm_message::query::FvmQueryHeight;
 use fendermint_vm_snapshot::{SnapshotClient, SnapshotError};
 use fvm::engine::MultiEngine;
 use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::{from_slice, to_vec};
 use fvm_shared::chainid::ChainID;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
@@ -49,10 +49,7 @@ use num_traits::Zero;
 use serde::{Deserialize, Serialize};
 use tendermint::abci::request::CheckTxKind;
 use tendermint::abci::{request, response};
-use tendermint::crypto::default::signature;
-use tendermint_rpc::endpoint::block_by_hash;
 use tracing::instrument;
-
 #[derive(Serialize)]
 #[repr(u8)]
 pub enum AppStoreKey {
@@ -393,8 +390,6 @@ where
         !(height == 0 && params.timestamp.0 == 0 && params.network_version == NetworkVersion::V0)
     }
 }
-// TODO: Properly import this
-pub type Tag = [u8; 32];
 // NOTE: The `Application` interface doesn't allow failures at the moment. The protobuf
 // of `Response` actually has an `Exception` type, so in theory we could use that, and
 // Tendermint would break up the connection. However, before the response could reach it,
@@ -436,34 +431,32 @@ where
     >,
     I: ExtendVoteInterpreter<
         State = FvmQueryState<SS>,
-        ExtendMessage = Tag,
-        ExtendOutput = Option<bls_signatures::Signature>,
-        VerifyMessage = (
-            tendermint::account::Id,
-            Vec<u8>,
-            Option<bls_signatures::Signature>,
-        ),
+        ExtendMessage = Tags,
+        ExtendOutput = SignedTags,
+        VerifyMessage = (tendermint::account::Id, Tags, SignedTags),
         VerifyOutput = Option<bool>,
     >,
 {
     async fn extend_vote(&self, request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
-        let db = self.state_store_clone();
-        let height = FvmQueryHeight::from(0);
-        let (state_params, block_height) = self.state_params_at_height(height)?;
-
         // Skip at block 0 no state yet.
-        if block_height == 0 {
+        if request.height.value() == 0 {
             tracing::info!("Extend vote at height 0. Skipping.");
             return Ok(response::ExtendVote {
                 vote_extension: Default::default(),
             });
         }
+
+        let db = self.state_store_clone();
+        let height = FvmQueryHeight::from(0);
+        let (state_params, block_height) = self.state_params_at_height(height)?;
+
         let state_root = state_params.state_root;
 
         tracing::info!(
             "extend_vote Creating FvmQueryState at height: {}",
             block_height
         );
+
         let state = FvmQueryState::new(
             db,
             self.multi_engine.clone(),
@@ -476,36 +469,50 @@ where
 
         // TODO: I think we actually want to do this in ExtendVoteInterpreter::extend_vote. Furthermote, we probably shouldnt ned to borrow db again.
         let db = self.state_store_clone();
-        let tag = get_tag_at_height(db, &state_root, block_height as i64)
-            .context("failed to get tag at height")?;
-        tracing::info!("ExtendVote found tag at height {}: {:?}", block_height, tag);
 
-        // TODO: Testing out signing and verification on the block hash
-        let t: Option<[u8; 32]> = Some(
-            request
-                .hash
-                .as_ref()
-                .try_into()
-                .context("failed to convert hash")?,
-        );
-        if let Some(tag) = t {
-            let signature = self
-                .interpreter
-                .extend_vote(state, tag)
-                .await
-                .context("failed to extend vote")?;
-            match signature {
-                Some(sig) => Ok(response::ExtendVote {
-                    vote_extension: sig.as_bytes().into(),
-                }),
-                None => Ok(response::ExtendVote {
-                    vote_extension: Default::default(),
-                }),
+        let tags = Tags({
+            // Check for cetf tag
+            let mut tags = vec![];
+
+            let cetf_tag = get_tag_at_height(db, &state_root, block_height as i64)
+                .context("failed to get tag at height")?;
+
+            tracing::info!(
+                "ExtendVote cetf_tag at height {}: {:?}",
+                block_height,
+                cetf_tag
+            );
+            if let Some(tag) = cetf_tag {
+                tags.push(TagKind::Cetf(tag));
             }
-        } else {
-            return Ok(response::ExtendVote {
+
+            // Block hash
+            tags.push(TagKind::BlockHash(request.hash));
+
+            // Block height
+            tags.push(TagKind::BlockHeight(block_height));
+            tags
+        });
+
+        tracing::info!("My turn to ExtendVote! tags: {:?}", tags);
+
+        let signatures = self
+            .interpreter
+            .extend_vote(state, tags)
+            .await
+            .context("failed to extend vote")?;
+        tracing::info!("My turn to ExtendVote signatures: {:?}", signatures);
+
+        // Either is_enabled is false or nothing to sign (TODO: We should force signing)
+        if signatures.0.is_empty() {
+            Ok(response::ExtendVote {
                 vote_extension: Default::default(),
-            });
+            })
+        } else {
+            let serialized = to_vec(&signatures).context("failed to serialize signatures")?;
+            Ok(response::ExtendVote {
+                vote_extension: serialized.into(),
+            })
         }
     }
 
@@ -538,21 +545,48 @@ where
             block_height
         );
         let state = FvmQueryState::new(
-            db,
+            db.clone(),
             self.multi_engine.clone(),
             block_height.try_into()?,
             state_params,
             self.check_state.clone(),
             height == FvmQueryHeight::Pending,
         )?;
+
+        let sigs: SignedTags =
+            from_slice(&request.vote_extension).context("failed to deserialize signatures")?;
+
+        let tags = Tags(
+            sigs.0
+                .iter()
+                .map(|sig_kind| match sig_kind {
+                    SignatureKind::Cetf(_) => {
+                        let db = db.clone();
+                        let tag = get_tag_at_height(db, &state_root, block_height as i64)
+                            .context("failed to get tag at height")?
+                            .ok_or_else(|| anyhow!("failed to get tag at height: None"))?;
+
+                        Ok(TagKind::Cetf(tag))
+                    }
+                    SignatureKind::BlockHash(_) => {
+                        let hash = request.hash.as_ref().to_vec();
+                        Ok(TagKind::BlockHash(
+                            hash.try_into().context("failed to convert hash")?,
+                        ))
+                    }
+                    SignatureKind::BlockHeight(_) => {
+                        let height = block_height;
+                        Ok(TagKind::BlockHeight(height))
+                    }
+                })
+                .collect::<anyhow::Result<Vec<TagKind>>>()?,
+        );
+
         let id = request.validator_address;
-        let msg = request.hash.as_ref().to_vec();
-        let sig = bls_signatures::Signature::from_bytes(&request.vote_extension)
-            .context("failed to convert signature")?;
 
         let (_, res) = self
             .interpreter
-            .verify_vote_extension(state, (id, msg, Some(sig)))
+            .verify_vote_extension(state, (id, tags, sigs))
             .await?;
 
         match res {

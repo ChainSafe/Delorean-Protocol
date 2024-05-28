@@ -6,27 +6,89 @@ use std::collections::HashMap;
 use anyhow::anyhow;
 use anyhow::Context;
 use async_trait::async_trait;
-use bls_signatures::Serialize;
 use bls_signatures::Serialize as _;
-use cid::Cid;
-use ethers::types::spoof::State;
+use fendermint_actor_cetf::BlsSignature;
 use fendermint_actor_cetf::Tag;
+use num_traits::ToBytes;
 
 use crate::ExtendVoteInterpreter;
-use fendermint_vm_actor_interface::cetf::{CETFSYSCALL_ACTOR_ADDR, CETFSYSCALL_ACTOR_ID};
-use fvm::state_tree::StateTree;
+use fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR;
 use fvm_ipld_blockstore::Blockstore;
-use fvm_ipld_encoding::CborStore;
+use fvm_ipld_encoding::serde::{Deserialize, Serialize};
 use fvm_shared::address::Address;
 use tendermint::account;
-use tendermint::PublicKey;
-use tendermint::{block::Height, consensus::state, Hash};
+use tendermint::{block::Height, Hash};
 use tendermint_rpc::Client;
 
 use super::{
-    checkpoint::bft_power_table, state::FvmQueryState, store::ReadOnlyBlockstore,
-    FvmMessageInterpreter, ValidatorContext,
+    checkpoint::bft_power_table, state::FvmQueryState, FvmMessageInterpreter, ValidatorContext,
 };
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Tags(pub Vec<TagKind>);
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SignedTags(pub Vec<SignatureKind>);
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum TagKind {
+    // From Cetf Actor
+    Cetf(Tag),
+    // Tendermint Block Hash
+    BlockHash(Hash),
+    // Height as be bytes
+    BlockHeight(u64),
+}
+
+impl TagKind {
+    pub fn to_vec(&self) -> Vec<u8> {
+        match self {
+            TagKind::Cetf(tag) => tag.to_vec(),
+            TagKind::BlockHash(hash) => hash.as_bytes().to_vec(),
+            TagKind::BlockHeight(height) => height.to_be_bytes().to_vec(),
+        }
+    }
+    pub fn sign<C>(&self, ctx: &ValidatorContext<C>) -> anyhow::Result<SignatureKind> {
+        match self {
+            TagKind::Cetf(tag) => {
+                let sig = ctx.sign_tag(tag.as_slice());
+                Ok(SignatureKind::Cetf(BlsSignature(
+                    sig.as_bytes().try_into().unwrap(),
+                )))
+            }
+            TagKind::BlockHash(hash) => {
+                let sig = ctx.sign_tag(hash.as_bytes());
+                Ok(SignatureKind::BlockHash(BlsSignature(
+                    sig.as_bytes().try_into().unwrap(),
+                )))
+            }
+            TagKind::BlockHeight(height) => {
+                let sig = ctx.sign_tag(&height.to_be_bytes().to_vec());
+                Ok(SignatureKind::BlockHeight(BlsSignature(
+                    sig.as_bytes().try_into().unwrap(),
+                )))
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum SignatureKind {
+    Cetf(BlsSignature),
+    BlockHash(BlsSignature),
+    BlockHeight(BlsSignature),
+}
+
+impl SignatureKind {
+    pub fn to_bls_signature(&self) -> anyhow::Result<bls_signatures::Signature> {
+        match self {
+            SignatureKind::Cetf(sig) => bls_signatures::Signature::from_bytes(&sig.0),
+            SignatureKind::BlockHash(sig) => bls_signatures::Signature::from_bytes(&sig.0),
+            SignatureKind::BlockHeight(sig) => bls_signatures::Signature::from_bytes(&sig.0),
+        }
+        .context("failed to convert SignatureKind to bls signature")
+    }
+}
 
 #[async_trait]
 impl<DB, TC> ExtendVoteInterpreter for FvmMessageInterpreter<DB, TC>
@@ -35,10 +97,10 @@ where
     TC: Client + Clone + Send + Sync + 'static,
 {
     type State = FvmQueryState<DB>;
-    type ExtendMessage = Tag;
-    type VerifyMessage = (account::Id, Vec<u8>, Option<bls_signatures::Signature>);
+    type ExtendMessage = Tags;
+    type VerifyMessage = (account::Id, Tags, SignedTags);
 
-    type ExtendOutput = Option<bls_signatures::Signature>;
+    type ExtendOutput = SignedTags;
     type VerifyOutput = Option<bool>;
 
     /// Sign the vote.
@@ -56,13 +118,19 @@ where
         };
 
         if !is_enabled {
-            return Ok(None);
+            return Ok(SignedTags(vec![]));
         }
 
         if let Some(ctx) = self.validator_ctx.as_ref() {
-            Ok(Some(ctx.sign_tag(&msg)))
+            Ok(SignedTags(
+                msg.0
+                    .iter()
+                    .map(|t| t.sign(ctx))
+                    .collect::<anyhow::Result<Vec<_>>>()
+                    .unwrap(),
+            ))
         } else {
-            Ok(None)
+            Ok(SignedTags(vec![]))
         }
     }
 
@@ -71,20 +139,26 @@ where
         state: Self::State,
         msg: Self::VerifyMessage,
     ) -> anyhow::Result<(Self::State, Self::VerifyOutput)> {
-        let (id, msg, sig) = msg;
+        let (id, tags, sigs) = msg;
 
-        if let Some(ctx) = self.validator_ctx.as_ref() {
+        if let Some(_ctx) = self.validator_ctx.as_ref() {
             let (state, res) = state.actor_state(&CETFSYSCALL_ACTOR_ADDR).await?;
             let store = state.read_only_store();
 
-            let (is_enabled, registered_keys) = if let Some((id, act_st)) = res {
+            let (is_enabled, registered_keys) = if let Some((_id, act_st)) = res {
                 let st: fendermint_actor_cetf::State =
                     state.store_get_cbor(&act_st.state)?.unwrap();
                 (st.enabled, st.get_validators_keymap(&store)?)
             } else {
                 return Err(anyhow!("no CETF actor found!"));
             };
+
             if !is_enabled {
+                if !tags.0.is_empty() || !sigs.0.is_empty() {
+                    return Err(anyhow!(
+                        "CETF Actor is disabled! There should not be and tags or signatures"
+                    ));
+                }
                 return Ok((state, None));
             }
             // TODO: There must be a better way to convert address to secp256k1 public key
@@ -109,6 +183,7 @@ where
                         (tm_addr, fvm_addr)
                     })
                     .collect::<HashMap<_, _>>();
+
             let fvm_addr = key_map.get(&id).expect("failed to get fvm address");
             let bls_pub_key = registered_keys
                 .get(fvm_addr)
@@ -116,9 +191,18 @@ where
                 .unwrap();
             let bls_pub_key = bls_signatures::PublicKey::from_bytes(&bls_pub_key.0)
                 .context("failed to deser bls pubkey")?;
-            let sig = sig.unwrap();
-            let res = bls_signatures::verify_messages(&sig, &[&msg], &[bls_pub_key]);
-            tracing::info!("Bls Signature Verification Result: {:?}", res);
+
+            // Verify signatures
+            let mut res = true;
+            for (sig, tag) in sigs.0.iter().zip(tags.0.iter()) {
+                let v = bls_signatures::verify_messages(
+                    &sig.to_bls_signature()?,
+                    &[&tag.to_vec()],
+                    &[bls_pub_key],
+                );
+                tracing::info!("BLS Verify for {:?} is {:?}", tag, v);
+                res &= v;
+            }
             if res {
                 Ok((state, Some(true)))
             } else {
@@ -129,52 +213,4 @@ where
             Ok((state, None))
         }
     }
-}
-
-pub async fn verify_tag<C, DB>(
-    client: &C,
-    state: FvmQueryState<DB>,
-    validator_pubkey: PublicKey,
-    signed_tag: bls_signatures::Signature,
-) -> anyhow::Result<bool>
-where
-    C: Client + Clone + Send + Sync + 'static,
-    DB: Blockstore + Send + Sync + Clone + 'static,
-{
-    let power_table = bft_power_table(client, Height::try_from(state.block_height() as u64)?)
-        .await
-        .context("failed to get power table")?;
-
-    let bft_keys = power_table
-        .0
-        .iter()
-        .map(|k| k.public_key.clone())
-        .collect::<Vec<_>>();
-
-    let (state, res) = state.actor_state(&CETFSYSCALL_ACTOR_ADDR).await?;
-    let store = state.read_only_store();
-
-    let (is_enabled, registered_keys) = if let Some((id, act_st)) = res {
-        let st: fendermint_actor_cetf::State = state.store_get_cbor(&act_st.state)?.unwrap();
-        (st.enabled, st.get_validators_keymap(&store)?)
-    } else {
-        return Err(anyhow!("no CETF actor found!"));
-    };
-
-    if !is_enabled {
-        return Ok(false);
-    } else {
-        // see if every bft key is in the validators map
-        for key in bft_keys {
-            if !registered_keys
-                .contains_key(&Address::new_secp256k1(&key.public_key().serialize())?)?
-            {
-                return Ok(false);
-            }
-        }
-        // How do we take Tendermint Id to PublicKey?
-        // let pubkey = registered_keys.get(key)
-    }
-
-    Ok(false)
 }

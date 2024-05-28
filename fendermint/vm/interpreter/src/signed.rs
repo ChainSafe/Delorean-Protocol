@@ -3,7 +3,6 @@
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 
-use ethers::types::Sign;
 use fendermint_vm_core::chainid::HasChainID;
 use fendermint_vm_message::{
     query::FvmQuery,
