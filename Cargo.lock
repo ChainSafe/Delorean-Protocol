@@ -2772,6 +2772,7 @@ dependencies = [
  "fvm_ipld_encoding",
  "fvm_sdk",
  "fvm_shared",
+ "log",
  "num-derive 0.3.3",
  "num-traits",
  "serde",

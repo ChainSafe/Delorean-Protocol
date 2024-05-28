@@ -466,7 +466,7 @@ where
         let db = self.state_store_clone();
         let tag = get_tag_at_height(db, &state_root, block_height as i64)
             .context("failed to get tag at height")?;
-        tracing::info!("ExtendVote found tag at height {}: {:?}", block_height, tag);
+        // tracing::info!("ExtendVote found tag at height {}: {:?}", block_height, tag);
         let t: Option<[u8; 32]> = Some(
             request
                 .hash
@@ -507,20 +507,20 @@ where
         // 2. Verify the signature using the BLS pubkey against tag (get from state).
         // 3. Do some other checks e.g. is every tag signed? Because if not we reject. I think we want EVERY tag signed (assuming multiple)
         if request.vote_extension.as_ref() == request.hash.as_ref() {
-            tracing::info!(
-                "Vote extension detected: {:?}",
-                request.vote_extension.as_ref()
-            );
+            // tracing::info!(
+            //     "Vote extension detected: {:?}",
+            //     request.vote_extension.as_ref()
+            // );
             Ok(response::VerifyVoteExtension::Accept)
         } else if request.vote_extension.is_empty() {
-            tracing::info!("Vote extension empty");
+            // tracing::info!("Vote extension empty");
             Ok(response::VerifyVoteExtension::Accept)
         } else {
-            tracing::info!(
-                "Incorrect vote extension: {:?} != {:?}",
-                request.vote_extension,
-                request.hash
-            );
+            // tracing::info!(
+            //     "Incorrect vote extension: {:?} != {:?}",
+            //     request.vote_extension,
+            //     request.hash
+            // );
             Ok(response::VerifyVoteExtension::Reject)
         }
     }

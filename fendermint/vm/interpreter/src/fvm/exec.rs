@@ -132,32 +132,31 @@ where
             }
         }
 
-        // actually we don't need to do this. Just let them persist forever..
-        // // Clear any CETF tags assigned for this height as these have now been signed (or the chain has halted)
-        // {
-        //     let params =
-        //         fvm_ipld_encoding::RawBytes::serialize(fendermint_actor_cetf::ClearTagParams {
-        //             height: height as u64,
-        //         })?;
-        //     let msg = FvmMessage {
-        //         from: system::SYSTEM_ACTOR_ADDR,
-        //         to: cetf::CETFSYSCALL_ACTOR_ADDR,
-        //         sequence: height as u64,
-        //         gas_limit,
-        //         method_num: fendermint_actor_cetf::Method::EnqueueTag as u64,
-        //         params,
-        //         value: Default::default(),
-        //         version: Default::default(),
-        //         gas_fee_cap: Default::default(),
-        //         gas_premium: Default::default(),
-        //     };
+        // invoke a method on the actor every block to test logging
+        {
+            let params =
+                fvm_ipld_encoding::RawBytes::serialize(fendermint_actor_cetf::EnqueueTagParams {
+                    tag: [11u8; 32],
+                })?;
+            let msg = FvmMessage {
+                from: system::SYSTEM_ACTOR_ADDR,
+                to: cetf::CETFSYSCALL_ACTOR_ADDR,
+                sequence: height as u64,
+                gas_limit,
+                method_num: fendermint_actor_cetf::Method::EnqueueTag as u64,
+                params,
+                value: Default::default(),
+                version: Default::default(),
+                gas_fee_cap: Default::default(),
+                gas_premium: Default::default(),
+            };
 
-        //     let (apply_ret, _) = state.execute_implicit(msg)?;
+            let (apply_ret, _) = state.execute_implicit(msg)?;
 
-        //     if let Some(err) = apply_ret.failure_info {
-        //         anyhow::bail!("failed to apply cetf message: {}", err);
-        //     }
-        // }
+            if let Some(err) = apply_ret.failure_info {
+                anyhow::bail!("failed to apply cetf message: {}", err);
+            }
+        }
 
         let ret = FvmApplyRet {
             apply_ret,

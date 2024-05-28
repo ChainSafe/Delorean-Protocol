@@ -9,7 +9,7 @@ import "filecoin-solidity-api/utils/Actor.sol";
 /// @author BadBoi Labs
 library CetfAPI {
     CommonTypes.FilActorId constant ActorID = CommonTypes.FilActorId.wrap(49);
-    uint256 constant EnqueueTagMethodNum = 18206847610; // obtained from actors/cetf/actor.rs  actor_dispatch! macro
+    uint256 constant EnqueueTagMethodNum = 1820684761; // obtained from actors/cetf/actor.rs  actor_dispatch! macro
 
     function enqueueTag(bytes32 tag) internal returns (int256) {
         bytes memory rawParams = abi.encodePacked(tag);

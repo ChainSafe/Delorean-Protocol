@@ -7,6 +7,7 @@ use fil_actors_runtime::actor_error;
 use fil_actors_runtime::builtin::singletons::SYSTEM_ACTOR_ADDR;
 use fil_actors_runtime::runtime::{ActorCode, Runtime};
 use fil_actors_runtime::ActorError;
+use fvm_shared::event::ActorEvent;
 
 use crate::state::State;
 use crate::AddValidatorParams;
@@ -20,30 +21,30 @@ impl Actor {
     /// Initialize the HAMT store for tags in the actor state
     /// Callable only by the system actor at genesis
     pub fn constructor(rt: &impl Runtime) -> Result<(), ActorError> {
-        println!("cetf actor constructor called");
         rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
 
         let st = State::new(rt.store())?;
         rt.create(&st)?;
-
         Ok(())
     }
 
     /// Add a new tag to the state to be signed by the validators
     /// Callable by anyone and designed to be called from Solidity contracts
     pub fn enqueue_tag(rt: &impl Runtime, params: EnqueueTagParams) -> Result<(), ActorError> {
-        println!(
+        rt.validate_immediate_caller_accept_any()?;
+
+        log::info!(
             "cetf actor enqueue_tag called by {} with tag {:?}",
             rt.message().caller(),
             params.tag
         );
 
         rt.transaction(|st: &mut State, rt| {
-            if st.enabled == false {
-                return Err(ActorError::forbidden(
-                    "CETF actor is disabled. Not all validators have added their keys.".to_owned(),
-                ));
-            }
+            // if st.enabled == false {
+            //     return Err(ActorError::forbidden(
+            //         "CETF actor is disabled. Not all validators have added their keys.".to_owned(),
+            //     ));
+            // }
             // NOTE: use of epoch is intentional here. In fendermint the epoch is the block height
             st.add_tag_at_height(rt, &rt.curr_epoch(), &params.tag)?;
             Ok(())
