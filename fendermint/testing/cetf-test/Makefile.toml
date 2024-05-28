@@ -58,17 +58,21 @@ script = """
 if [ $NODE_NAME = "node-1" ]; then
 cp ${TEST_DATA_DIR}/keys/victoria.priv_validator_key.json ${TEST_DATA_DIR}/${NODE_NAME}/cometbft/config/priv_validator_key.json
 cp ${TEST_DATA_DIR}/keys/victoria.bls.sk ${TEST_DATA_DIR}/${NODE_NAME}/cometbft/config/bls_key.sk
+cp ${TEST_DATA_DIR}/keys/victoria.sk ${TEST_DATA_DIR}/${NODE_NAME}/cometbft/config/validator_key.sk
 
 fi
 if [ $NODE_NAME = "node-2" ]; then
 cp ${TEST_DATA_DIR}/keys/vivienne.priv_validator_key.json ${TEST_DATA_DIR}/${NODE_NAME}/cometbft/config/priv_validator_key.json
 cp ${TEST_DATA_DIR}/keys/vivienne.bls.sk ${TEST_DATA_DIR}/${NODE_NAME}/cometbft/config/bls_key.sk
+cp ${TEST_DATA_DIR}/keys/vivienne.sk ${TEST_DATA_DIR}/${NODE_NAME}/cometbft/config/validator_key.sk
 fi
 if [ $NODE_NAME = "node-3" ]; then
 cp ${TEST_DATA_DIR}/keys/volvo.priv_validator_key.json ${TEST_DATA_DIR}/${NODE_NAME}/cometbft/config/priv_validator_key.json
 cp ${TEST_DATA_DIR}/keys/volvo.bls.sk ${TEST_DATA_DIR}/${NODE_NAME}/cometbft/config/bls_key.sk
+cp ${TEST_DATA_DIR}/keys/volvo.sk ${TEST_DATA_DIR}/${NODE_NAME}/cometbft/config/validator_key.sk
 fi
 """
+
 
 # ### General tasks for node-1 and node-2
 
@@ -82,7 +86,7 @@ run_task = { name = [
   "val-keys",
   "node-set-seed",
   "node-copy-genesis",
-  "fendermint-start",
+  "fendermint-start-cetf",
   "cometbft-start",
   "cometbft-wait",
   "cometbft-export-node-id",

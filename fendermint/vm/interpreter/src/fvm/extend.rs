@@ -66,7 +66,12 @@ where
         state: Self::State,
         msg: Self::Message,
     ) -> anyhow::Result<(Self::State, Self::Output)> {
-        todo!("Unimplemented")
+        if let Some(ctx) = self.validator_ctx.as_ref() {
+            tracing::info!("Validator context BLS Key: {:?}", ctx.bls_secret_key);
+        } else {
+            tracing::info!("No validator context found");
+        }
+        Ok((state, None))
     }
 }
 

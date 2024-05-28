@@ -511,6 +511,30 @@ where
                 "Vote extension detected: {:?}",
                 request.vote_extension.as_ref()
             );
+
+            let db = self.state_store_clone();
+            let height = FvmQueryHeight::from(0);
+            let (state_params, block_height) = self.state_params_at_height(height)?;
+            let state_root = state_params.state_root;
+            // if !Self::can_query_state(block_height, &state_params) {
+            //     return Ok(invalid_query(
+            //         AppError::NotInitialized,
+            //         "The app hasn't been initialized yet.".to_owned(),
+            //     ));
+            // }
+
+            let state = FvmQueryState::new(
+                db,
+                self.multi_engine.clone(),
+                block_height.try_into()?,
+                state_params,
+                self.check_state.clone(),
+                height == FvmQueryHeight::Pending,
+            )?;
+
+            self.interpreter
+                .verify_vote_extension(state, request.hash.as_ref().try_into()?)
+                .await?;
             Ok(response::VerifyVoteExtension::Accept)
         } else if request.vote_extension.is_empty() {
             tracing::info!("Vote extension empty");
