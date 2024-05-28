@@ -67,11 +67,22 @@ where
         msg: Self::Message,
     ) -> anyhow::Result<(Self::State, Self::Output)> {
         if let Some(ctx) = self.validator_ctx.as_ref() {
-            tracing::info!("Validator context BLS Key: {:?}", ctx.bls_secret_key);
+            let (state, res) = state.actor_state(&CETFSYSCALL_ACTOR_ADDR).await?;
+            let store = state.read_only_store();
+
+            let (is_enabled, registered_keys) = if let Some((id, act_st)) = res {
+                let st: fendermint_actor_cetf::State =
+                    state.store_get_cbor(&act_st.state)?.unwrap();
+                (st.enabled, st.get_validators_keymap(&store)?)
+            } else {
+                return Err(anyhow!("no CETF actor found!"));
+            };
+
+            Ok((state, None))
         } else {
             tracing::info!("No validator context found");
+            Ok((state, None))
         }
-        Ok((state, None))
     }
 }
 

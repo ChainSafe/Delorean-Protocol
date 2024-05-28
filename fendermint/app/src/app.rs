@@ -444,6 +444,14 @@ where
         let db = self.state_store_clone();
         let height = FvmQueryHeight::from(0);
         let (state_params, block_height) = self.state_params_at_height(height)?;
+
+        // Skip at block 0 no state yet.
+        if block_height == 0 {
+            tracing::info!("Extend vote at height 0. Skipping.");
+            return Ok(response::ExtendVote {
+                vote_extension: Default::default(),
+            });
+        }
         let state_root = state_params.state_root;
         // if !Self::can_query_state(block_height, &state_params) {
         //     return Ok(invalid_query(
@@ -452,6 +460,10 @@ where
         //     ));
         // }
 
+        tracing::info!(
+            "extend_vote Creating FvmQueryState at height: {}",
+            block_height
+        );
         let state = FvmQueryState::new(
             db,
             self.multi_engine.clone(),
@@ -502,10 +514,10 @@ where
         &self,
         request: request::VerifyVoteExtension,
     ) -> AbciResult<response::VerifyVoteExtension> {
-        // TODO: Implement this.
-        // 1. Get the BLS pubkey from some on-chain mapping from validators secp256k1 pubkey -> BLS pubkey.
-        // 2. Verify the signature using the BLS pubkey against tag (get from state).
-        // 3. Do some other checks e.g. is every tag signed? Because if not we reject. I think we want EVERY tag signed (assuming multiple)
+        if request.height.value() == 0 && request.vote_extension.is_empty() {
+            tracing::info!("Verify vote extension at height 0. Skipping.");
+            return Ok(response::VerifyVoteExtension::Accept);
+        }
         if request.vote_extension.as_ref() == request.hash.as_ref() {
             tracing::info!(
                 "Vote extension detected: {:?}",
@@ -522,7 +534,10 @@ where
             //         "The app hasn't been initialized yet.".to_owned(),
             //     ));
             // }
-
+            tracing::info!(
+                "verify_vote_extension Creating FvmQueryState at height: {}",
+                block_height
+            );
             let state = FvmQueryState::new(
                 db,
                 self.multi_engine.clone(),

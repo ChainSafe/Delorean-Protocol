@@ -75,6 +75,8 @@ impl Actor {
         Ok(())
     }
 
+    // TODO: We should use message.sender instead of having the address as a parameter.
+    // Leaving this as is for now because its just easier to write scripts for testing because we can send from the same sender.
     pub fn add_validator(rt: &impl Runtime, params: AddValidatorParams) -> Result<(), ActorError> {
         rt.validate_immediate_caller_accept_any()?;
 
