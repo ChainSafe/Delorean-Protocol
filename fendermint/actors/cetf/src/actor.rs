@@ -9,6 +9,7 @@ use fil_actors_runtime::runtime::{ActorCode, Runtime};
 use fil_actors_runtime::ActorError;
 
 use crate::state::State;
+use crate::AddSignedTagParams;
 use crate::AddValidatorParams;
 use crate::{EnqueueTagParams, GetTagParams};
 use crate::{Method, CETF_ACTOR_NAME};
@@ -20,7 +21,7 @@ impl Actor {
     /// Initialize the HAMT store for tags in the actor state
     /// Callable only by the system actor at genesis
     pub fn constructor(rt: &impl Runtime) -> Result<(), ActorError> {
-        println!("cetf actor constructor called");
+        log::info!("cetf actor constructor called");
         rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
 
         let st = State::new(rt.store())?;
@@ -32,6 +33,7 @@ impl Actor {
     /// Add a new tag to the state to be signed by the validators
     /// Callable by anyone and designed to be called from Solidity contracts
     pub fn enqueue_tag(rt: &impl Runtime, params: EnqueueTagParams) -> Result<(), ActorError> {
+        log::info!("enqueue_tag called");
         rt.validate_immediate_caller_accept_any()?;
         rt.transaction(|st: &mut State, rt| {
             if st.enabled == false {
@@ -50,6 +52,7 @@ impl Actor {
     /// Clear a tag as presumably it has now been signed by the validators at it corresponding height
     /// Callable only by the system actor
     pub fn get_tag(rt: &impl Runtime, params: GetTagParams) -> Result<(), ActorError> {
+        log::info!("get_tag called");
         rt.validate_immediate_caller_accept_any()?;
 
         let state: State = rt.state()?;
@@ -58,17 +61,20 @@ impl Actor {
     }
 
     pub fn enable(rt: &impl Runtime) -> Result<(), ActorError> {
+        log::info!("enable called");
         rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
-        rt.transaction(|st: &mut State, rt| {
+        rt.transaction(|st: &mut State, _rt| {
             st.enabled = true;
             Ok(())
         })?;
         Ok(())
     }
 
+    // TODO: Should be unused for now. Need to figure out the mechanics for validator set changes. Assume static.
     pub fn disable(rt: &impl Runtime) -> Result<(), ActorError> {
+        log::info!("disable called");
         rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
-        rt.transaction(|st: &mut State, rt| {
+        rt.transaction(|st: &mut State, _rt| {
             st.enabled = false;
             Ok(())
         })?;
@@ -78,10 +84,23 @@ impl Actor {
     // TODO: We should use message.sender instead of having the address as a parameter.
     // Leaving this as is for now because its just easier to write scripts for testing because we can send from the same sender.
     pub fn add_validator(rt: &impl Runtime, params: AddValidatorParams) -> Result<(), ActorError> {
+        log::info!("add_validator called");
         rt.validate_immediate_caller_accept_any()?;
 
         rt.transaction(|st: &mut State, rt| {
             st.add_validator(rt.store(), &params.address, &params.public_key)?;
+            Ok(())
+        })?;
+        Ok(())
+    }
+
+    pub fn add_signed_tag(rt: &impl Runtime, params: AddSignedTagParams) -> Result<(), ActorError> {
+        // TODO: Probaby want to restrict this to validators only
+        log::info!("add_signed_tag called");
+        rt.validate_immediate_caller_accept_any()?;
+
+        rt.transaction(|st: &mut State, rt| {
+            st.add_signed_tag_at_height(rt, &params.height, &params.signature)?;
             Ok(())
         })?;
         Ok(())
@@ -102,5 +121,6 @@ impl ActorCode for Actor {
         Enable => enable,
         AddValidator => add_validator,
         Disable => disable,
+        AddSignedTag => add_signed_tag,
     }
 }

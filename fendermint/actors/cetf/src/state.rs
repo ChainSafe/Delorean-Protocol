@@ -1,8 +1,8 @@
 // Copyright 2022-2024 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::BlsPublicKey;
 use crate::{BlockHeight, Tag};
+use crate::{BlsPublicKey, BlsSignature};
 use cid::Cid;
 use fil_actors_runtime::{runtime::Runtime, ActorError, Map2, DEFAULT_HAMT_CONFIG};
 use fvm_ipld_blockstore::Blockstore;
@@ -11,21 +11,24 @@ use fvm_shared::address::Address;
 
 pub type TagMap<BS> = Map2<BS, BlockHeight, Tag>;
 pub type ValidatorBlsPublicKeyMap<BS> = Map2<BS, Address, BlsPublicKey>;
-
+pub type SignedTagMap<BS> = Map2<BS, BlockHeight, BlsSignature>;
 #[derive(Serialize_tuple, Deserialize_tuple, Debug, Clone)]
 pub struct State {
     pub tag_map: Cid,    // HAMT[BlockHeight] => Tag
     pub validators: Cid, // HAMT[Address] => BlsPublicKey (Assumes static validator set)
     pub enabled: bool,
-    pub signed_tags: Cid, // HAMT[BlockHeight] => BlsSignature(bytes 48)
+    pub signed_tags: Cid, // HAMT[BlockHeight] => BlsSignature(bytes 96)
 }
 
 impl State {
     pub fn new<BS: Blockstore>(store: &BS) -> Result<State, ActorError> {
         let tag_map = { TagMap::empty(store, DEFAULT_HAMT_CONFIG, "empty tag_map").flush()? };
-        let validators = { TagMap::empty(store, DEFAULT_HAMT_CONFIG, "empty validators").flush()? };
+        let validators = {
+            ValidatorBlsPublicKeyMap::empty(store, DEFAULT_HAMT_CONFIG, "empty validators")
+                .flush()?
+        };
         let signed_tags =
-            { TagMap::empty(store, DEFAULT_HAMT_CONFIG, "empty signed_tags").flush()? };
+            { SignedTagMap::empty(store, DEFAULT_HAMT_CONFIG, "empty signed_tags").flush()? };
         Ok(State {
             tag_map,
             validators,
@@ -65,6 +68,7 @@ impl State {
             "writing tag_map",
         )?;
         tag_map.set(&height, tag.clone())?;
+        self.tag_map = tag_map.flush()?;
         Ok(())
     }
 
@@ -87,5 +91,24 @@ impl State {
             DEFAULT_HAMT_CONFIG,
             "reading validators",
         )
+    }
+
+    pub fn add_signed_tag_at_height(
+        &mut self,
+        rt: &impl Runtime,
+        height: &BlockHeight,
+        signature: &BlsSignature,
+    ) -> Result<(), ActorError> {
+        log::info!("Message height: {}", rt.curr_epoch());
+        log::info!("Adding signed tag at height {}", height);
+        let mut signed_tags = SignedTagMap::load(
+            rt.store(),
+            &self.tag_map,
+            DEFAULT_HAMT_CONFIG,
+            "writing tag_map",
+        )?;
+        signed_tags.set(&height, signature.clone())?;
+        signed_tags.flush()?;
+        Ok(())
     }
 }
