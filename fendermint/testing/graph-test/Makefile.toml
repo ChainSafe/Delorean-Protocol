@@ -57,7 +57,7 @@ npm run graph-node
 
 echo "Waiting for Graph node to start..."
 # Notice that subgraph node does takes a while to spin up
-sleep 30s
+sleep 30
 
 npm run create-local
 npm run deploy-local
