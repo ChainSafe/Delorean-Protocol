@@ -807,13 +807,40 @@ where
         // vote extensions (well technically in intepreter.prepare?) so that we can inject the aggregated
         // signature into a transaction to publish to the cetf actor so other contracts on chain can access it.
         match request.local_last_commit {
-            Some(_info) => {
-                tracing::info!("Prepare proposal with local last commit:");
+            Some(info) => {
+                let votes = info
+                    .votes
+                    .into_iter()
+                    .map(|vote| {
+                        if vote.vote_extension.is_empty() {
+                            vec![]
+                        } else {
+                            from_slice::<SignedTags>(&vote.vote_extension).unwrap().0
+                        }
+                    })
+                    .flatten()
+                    .collect::<Vec<_>>();
+                let cetf_tags = votes
+                    .iter()
+                    .filter(|t| matches!(t, SignatureKind::Cetf(_)))
+                    .collect::<Vec<_>>();
+                let height_tags = votes
+                    .iter()
+                    .filter(|t| matches!(t, SignatureKind::BlockHeight(_)))
+                    .collect::<Vec<_>>();
+                let hash_tags = votes
+                    .iter()
+                    .filter(|t| matches!(t, SignatureKind::BlockHash(_)))
+                    .collect::<Vec<_>>();
+                tracing::info!(
+                    "Prepare Proposal! height_tags: {}, hash_tags: {}, cetf_tags: {}",
+                    height_tags.len(),
+                    hash_tags.len(),
+                    cetf_tags.len(),
+                );
             }
             None => {
-                tracing::info!(
-                    "Prepare proposal with no local last commit i.e. no tags were signed"
-                );
+                tracing::info!("Prepare proposal with no local last commit");
             }
         }
 
