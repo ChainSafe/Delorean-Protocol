@@ -28,14 +28,6 @@ extend = [
 #   { path = "../Makefile/ci.env", profile = "ci" },
 # ]
 
-[tasks.fendermint-start-cetf]
-extend = "fendermint-run"
-env = { "ENTRY" = "fendermint", "CMD" = "run", "FLAGS" = """
--d \
---env FM_VALIDATOR_KEY__PATH=/data/${NODE_NAME}/${VALIDATOR_PRIV_KEY_PATH} \
---env FM_VALIDATOR_KEY__KIND=ethereum \
---env FM_BLS_SIGNING_KEY__PATH=/data/${NODE_NAME}/${BLS_PRIV_KEY_PATH} \
-""" }
 
 [tasks.default]
 clear = true
@@ -64,26 +56,6 @@ dependencies = [
   "ethapi-logs",
 ]
 
-# Waiting before starting the Eth API for the CometBFT websocket to start listening.
-[tasks.setup-cetf]
-dependencies = [
-  "create-log-volume",
-  "test-data-dir",
-  "test-data-env",
-  "test-node-dir",
-  "docker-network-create",
-  "cometbft-init",
-  "fendermint-init",
-  # "fendermint-start",
-  "fendermint-start-cetf",
-  "cometbft-start",
-  "ethapi-start",
-  "cometbft-wait",
-  "promtail-start",
-  "fendermint-logs",
-  "cometbft-logs",
-  "ethapi-logs",
-]
 
 
 [tasks.test]

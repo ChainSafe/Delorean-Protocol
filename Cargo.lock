@@ -2955,6 +2955,34 @@ dependencies = [
 [[package]]
 name = "fendermint_cetf_test"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.21.7",
+ "bytes",
+ "cid",
+ "clap 4.5.4",
+ "ethers",
+ "fendermint_actor_cetf",
+ "fendermint_crypto",
+ "fendermint_rpc",
+ "fendermint_vm_actor_interface",
+ "fendermint_vm_genesis",
+ "fendermint_vm_message",
+ "fvm_ipld_encoding",
+ "fvm_shared",
+ "hex",
+ "lazy_static",
+ "prost",
+ "serde",
+ "serde_json",
+ "tendermint",
+ "tendermint-proto",
+ "tendermint-rpc",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
 
 [[package]]
 name = "fendermint_contract_test"

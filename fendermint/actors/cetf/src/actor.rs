@@ -32,6 +32,7 @@ impl Actor {
     /// Add a new tag to the state to be signed by the validators
     /// Callable by anyone and designed to be called from Solidity contracts
     pub fn enqueue_tag(rt: &impl Runtime, params: EnqueueTagParams) -> Result<(), ActorError> {
+        rt.validate_immediate_caller_accept_any()?;
         rt.transaction(|st: &mut State, rt| {
             if st.enabled == false {
                 return Err(ActorError::forbidden(
@@ -49,6 +50,8 @@ impl Actor {
     /// Clear a tag as presumably it has now been signed by the validators at it corresponding height
     /// Callable only by the system actor
     pub fn get_tag(rt: &impl Runtime, params: GetTagParams) -> Result<(), ActorError> {
+        rt.validate_immediate_caller_accept_any()?;
+
         let state: State = rt.state()?;
         state.get_tag_at_height(rt.store(), &params.height)?;
         Ok(())
@@ -73,7 +76,8 @@ impl Actor {
     }
 
     pub fn add_validator(rt: &impl Runtime, params: AddValidatorParams) -> Result<(), ActorError> {
-        rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
+        rt.validate_immediate_caller_accept_any()?;
+
         rt.transaction(|st: &mut State, rt| {
             st.add_validator(rt.store(), &params.address, &params.public_key)?;
             Ok(())

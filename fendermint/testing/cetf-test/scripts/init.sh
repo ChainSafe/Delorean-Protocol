@@ -28,8 +28,8 @@ for NAME in veronica victoria vivienne volvo; do
   fendermint \
     genesis --genesis-file $GENESIS_FILE \
     add-account --public-key $KEYS_DIR/$NAME.pk \
-                --balance 1000 \
-                --kind ethereum
+                --balance 10000 
+                # --kind ethereum
 
   # Convert FM validator key to CMT
   fendermint \

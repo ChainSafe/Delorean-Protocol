@@ -11,6 +11,37 @@ env_files = [
   { path = "../scripts/ci.env", profile = "ci" },
 ]
 
+[tasks.fendermint-start-cetf]
+extend = "fendermint-run"
+env = { "ENTRY" = "fendermint", "CMD" = "run", "FLAGS" = """
+-d \
+--env FM_VALIDATOR_KEY__PATH=/data/${NODE_NAME}/${VALIDATOR_PRIV_KEY_PATH} \
+--env FM_VALIDATOR_KEY__KIND=ethereum \
+--env FM_BLS_SIGNING_KEY__PATH=/data/${NODE_NAME}/${BLS_PRIV_KEY_PATH} \
+""" }
+
+# Waiting before starting the Eth API for the CometBFT websocket to start listening.
+[tasks.setup-cetf]
+dependencies = [
+  "create-log-volume",
+  "test-data-dir",
+  "test-data-env",
+  "test-node-dir",
+  "docker-network-create",
+  "cometbft-init",
+  "fendermint-init",
+  # "fendermint-start",
+  "fendermint-start-cetf",
+  "cometbft-start",
+  "ethapi-start",
+  "cometbft-wait",
+  "promtail-start",
+  "fendermint-logs",
+  "cometbft-logs",
+  "ethapi-logs",
+]
+
+
 # Overriding the env file to enable snapshotting.
 # This one is applied on every *container*.
 # The other env files are for `cargo make` itself,
@@ -129,6 +160,31 @@ if [ "$EARLIEST" = "$LATEST" ]; then
   echo "ERROR: The chain is not syncing!"
   exit 1
 fi
+"""
+
+[tasks.register-bls-keys]
+script = """
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/cetf-test
+
+cargo run --example register_bls -- \
+  --secret-key test-data/keys/veronica.sk \
+  --bls-secret-key test-data/keys/veronica.bls.sk \
+  ${VERBOSITY}
+
+cargo run --example register_bls -- \
+  --secret-key test-data/keys/victoria.sk \
+  --bls-secret-key test-data/keys/victoria.bls.sk \
+  ${VERBOSITY}
+
+cargo run --example register_bls -- \
+  --secret-key test-data/keys/vivienne.sk \
+  --bls-secret-key test-data/keys/vivienne.bls.sk \
+  ${VERBOSITY}
+
+cargo run --example register_bls -- \
+  --secret-key test-data/keys/volvo.sk \
+  --bls-secret-key test-data/keys/volvo.bls.sk \
+  ${VERBOSITY}
 """
 
 
