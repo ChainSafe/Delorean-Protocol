@@ -304,22 +304,25 @@ where
     I: ExtendVoteInterpreter,
 {
     type State = I::State;
-    type Message = I::Message;
-    type Output = I::Output;
+    type ExtendMessage = I::ExtendMessage;
+    type VerifyMessage = I::VerifyMessage;
+
+    type ExtendOutput = I::ExtendOutput;
+    type VerifyOutput = I::VerifyOutput;
 
     async fn extend_vote(
         &self,
         state: Self::State,
-        msg: Self::Message,
-    ) -> anyhow::Result<Self::Output> {
+        msg: Self::ExtendMessage,
+    ) -> anyhow::Result<Self::ExtendOutput> {
         self.inner.extend_vote(state, msg).await
     }
 
     async fn verify_vote_extension(
         &self,
         state: Self::State,
-        msg: Self::Message,
-    ) -> anyhow::Result<(Self::State, Self::Output)> {
+        msg: Self::VerifyMessage,
+    ) -> anyhow::Result<(Self::State, Self::VerifyOutput)> {
         self.inner.verify_vote_extension(state, msg).await
     }
 }

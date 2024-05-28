@@ -28,8 +28,8 @@ for NAME in veronica victoria vivienne volvo; do
   fendermint \
     genesis --genesis-file $GENESIS_FILE \
     add-account --public-key $KEYS_DIR/$NAME.pk \
-                --balance 1000 \
-                --kind ethereum
+                --balance 10000 
+                # --kind ethereum
 
   # Convert FM validator key to CMT
   fendermint \
@@ -67,6 +67,17 @@ fendermint \
 cp $KEYS_DIR/$VALIDATOR_NAME.priv_validator_key.json \
    $CMT_DIR/config/priv_validator_key.json
 
+# Copy the default validator  priv key
+cp $KEYS_DIR/$VALIDATOR_NAME.sk \
+   $CMT_DIR/config/validator_key.sk
+
+cp $KEYS_DIR/$VALIDATOR_NAME.pk \
+   $CMT_DIR/config/validator_key.pk
+
 # Copy the default bls key
 cp $KEYS_DIR/$VALIDATOR_NAME.bls.sk \
-   $CMT_DIR/config/priv_bls_key.pk
+   $CMT_DIR/config/bls_key.sk
+
+# Copy the default bls key
+cp $KEYS_DIR/$VALIDATOR_NAME.bls.pk \
+   $CMT_DIR/config/bls_key.pk

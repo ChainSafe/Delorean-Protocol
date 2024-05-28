@@ -89,12 +89,11 @@ pub struct SigningKey {
 }
 home_relative!(SigningKey { path });
 /// A BLS key used to sign transactions,
-/// with the account kind showing if it's a regular or an ethereum key.
 #[derive(Debug, Deserialize, Clone)]
-pub struct BLSSigningKey {
+pub struct BlsSigningKey {
     path: PathBuf,
 }
-home_relative!(BLSSigningKey { path });
+home_relative!(BlsSigningKey { path });
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AbciSettings {
@@ -282,7 +281,7 @@ pub struct Settings {
     /// Secp256k1 private key used for signing transactions sent in the validator's name. Leave empty if not validating.
     pub validator_key: Option<SigningKey>,
     /// Path to bls private key used for signing tags.
-    pub bls_signing_key: Option<BLSSigningKey>,
+    pub bls_signing_key: Option<BlsSigningKey>,
 
     pub abci: AbciSettings,
     pub db: DbSettings,

@@ -79,6 +79,9 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
         None
     };
 
+    tracing::info!("Validator key: {:?}", settings.validator_key);
+    tracing::info!("BLS key: {:?}", settings.bls_signing_key);
+
     let validator = match settings.validator_key {
         Some(ref key) => {
             let sk = key.path(settings.home_dir());
