@@ -1,7 +1,7 @@
 // Copyright 2022-2024 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::{BlockHash, BlockHeight, Tag};
+use crate::{BlockHeight, Tag};
 use crate::{BlsPublicKey, BlsSignature};
 use cid::Cid;
 use fil_actors_runtime::{runtime::Runtime, ActorError, Map2, DEFAULT_HAMT_CONFIG};
@@ -13,8 +13,6 @@ pub type TagMap<BS> = Map2<BS, BlockHeight, Tag>;
 pub type ValidatorBlsPublicKeyMap<BS> = Map2<BS, Address, BlsPublicKey>;
 pub type SignedTagMap<BS> = Map2<BS, BlockHeight, BlsSignature>;
 
-pub type SignedBlockHashTags<BS> = Map2<BS, BlockHash, BlsSignature>;
-
 pub type SignedBlockHeightTags<BS> = Map2<BS, BlockHeight, BlsSignature>;
 
 #[derive(Serialize_tuple, Deserialize_tuple, Debug, Clone)]
@@ -24,7 +22,6 @@ pub struct State {
     pub enabled: bool,
 
     pub signed_tags: Cid, // HAMT[BlockHeight] => BlsSignature(bytes 96)
-    pub signed_blockhash_tags: Cid, // HAMT[Bytes 32] => BlsSignature(bytes 96)
     pub signed_blockheight_tags: Cid, // HAMT[BlockHeight] => BlsSignature(bytes 96)
 }
 
@@ -37,9 +34,7 @@ impl State {
 
         let signed_tags =
             SignedTagMap::empty(store, DEFAULT_HAMT_CONFIG, "empty signed_tags").flush()?;
-        let signed_blockhash_tags =
-            SignedBlockHashTags::empty(store, DEFAULT_HAMT_CONFIG, "empty signed_blockhash_tags")
-                .flush()?;
+
         let signed_blockheight_tags = SignedBlockHeightTags::empty(
             store,
             DEFAULT_HAMT_CONFIG,
@@ -51,7 +46,6 @@ impl State {
             validators,
             enabled: false,
             signed_tags,
-            signed_blockhash_tags,
             signed_blockheight_tags,
         })
     }
@@ -147,23 +141,6 @@ impl State {
         )?;
         signed_blockheight_tags.set(&height, signature.clone())?;
         self.signed_blockheight_tags = signed_blockheight_tags.flush()?;
-        Ok(())
-    }
-
-    pub fn add_signed_blockhash_tag_at_height(
-        &mut self,
-        rt: &impl Runtime,
-        hash: &BlockHash,
-        signature: &BlsSignature,
-    ) -> Result<(), ActorError> {
-        let mut signed_blockhash_tags = SignedBlockHashTags::load(
-            rt.store(),
-            &self.signed_blockhash_tags,
-            DEFAULT_HAMT_CONFIG,
-            "writing signed_blockheight_tags",
-        )?;
-        signed_blockhash_tags.set(&hash, signature.clone())?;
-        self.signed_blockhash_tags = signed_blockhash_tags.flush()?;
         Ok(())
     }
 }

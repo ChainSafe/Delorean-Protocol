@@ -490,9 +490,6 @@ where
                 tags.push(TagKind::Cetf(tag));
             }
 
-            // Block hash
-            tags.push(TagKind::BlockHash(request.hash));
-
             // Block height
             tags.push(TagKind::BlockHeight(block_height));
             tags
@@ -571,10 +568,6 @@ where
                             .ok_or_else(|| anyhow!("failed to get tag at height: None"))?;
 
                         Ok(TagKind::Cetf(tag))
-                    }
-                    SignatureKind::BlockHash(_) => {
-                        let hash = request.hash.as_ref().to_vec();
-                        Ok(TagKind::BlockHash(hash.try_into().unwrap()))
                     }
                     SignatureKind::BlockHeight(_) => {
                         let height = block_height;
@@ -844,13 +837,6 @@ where
                     .map(bls_signatures::Signature::from_bytes)
                     .collect::<Result<Vec<_>, bls_signatures::Error>>()
                     .unwrap();
-                let hash_sigs = votes
-                    .iter()
-                    .filter(|t| matches!(t, SignatureKind::BlockHash(_)))
-                    .map(SignatureKind::as_slice)
-                    .map(bls_signatures::Signature::from_bytes)
-                    .collect::<Result<Vec<_>, bls_signatures::Error>>()
-                    .unwrap();
 
                 let agg_cetf_sig = if !cetf_sigs.is_empty() {
                     Some(bls_signatures::aggregate(&cetf_sigs).unwrap())
@@ -862,16 +848,11 @@ where
                 } else {
                     None
                 };
-                let agg_hash_sig = if !hash_sigs.is_empty() {
-                    Some(bls_signatures::aggregate(&hash_sigs).unwrap())
-                } else {
-                    None
-                };
+
                 tracing::info!(
-                    "Aggregation result: cetf_sig: {:?}, height_sig: {:?}, hash_sig: {:?}",
+                    "Aggregation result: cetf_sig: {:?}, height_sig: {:?}",
                     agg_cetf_sig,
                     agg_height_sig,
-                    agg_hash_sig
                 );
                 if let Some(agg_cetf) = agg_cetf_sig {
                     cetf_tx.push(cetf_tag_msg_to_chainmessage(&(
@@ -886,12 +867,9 @@ where
                     ))?);
                 };
 
-                //TODO : Purpusefully skipping the block hash tags
-
                 tracing::info!(
-                    "Prepare Proposal! height_tags: {}, hash_tags: {}, cetf_tags: {}",
+                    "Prepare Proposal! height_tags: {}, cetf_tags: {}",
                     height_sigs.len(),
-                    hash_sigs.len(),
                     cetf_sigs.len(),
                 );
             }

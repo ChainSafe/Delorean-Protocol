@@ -33,7 +33,11 @@ impl Actor {
 
     pub fn echo(rt: &impl Runtime, params: ()) -> Result<(), ActorError> {
         rt.validate_immediate_caller_accept_any()?;
-        log::info!("echo called by {} from origin {}", rt.message().caller(), rt.message().origin());
+        log::info!(
+            "echo called by {} from origin {}",
+            rt.message().caller(),
+            rt.message().origin()
+        );
         Ok(())
     }
 
@@ -134,20 +138,6 @@ impl Actor {
         })?;
         Ok(())
     }
-
-    pub fn add_signed_blockhash_tag(
-        rt: &impl Runtime,
-        params: AddSignedBlockHashTagParams,
-    ) -> Result<(), ActorError> {
-        // TODO: Probaby want to restrict this to validators only or something
-        log::info!("add_signed_blockhash_tag called");
-        rt.validate_immediate_caller_accept_any()?;
-        rt.transaction(|st: &mut State, rt| {
-            st.add_signed_blockhash_tag_at_height(rt, &params.hash, &params.signature)?;
-            Ok(())
-        })?;
-        Ok(())
-    }
 }
 
 impl ActorCode for Actor {
@@ -167,6 +157,5 @@ impl ActorCode for Actor {
         Disable => disable,
         AddSignedTag => add_signed_tag,
         AddSignedBlockHeightTag => add_signed_blockheight_tag,
-        AddSignedBlockHashTag => add_signed_blockhash_tag,
     }
 }

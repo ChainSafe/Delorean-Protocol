@@ -13,10 +13,9 @@ use anyhow::{bail, Context};
 use async_stm::atomically;
 use async_trait::async_trait;
 use bls_signatures::Serialize;
-use core::task;
-use fendermint_actor_cetf::{BlockHash, BlsSignature};
+use fendermint_actor_cetf::BlsSignature;
 use fendermint_tracing::emit;
-use fendermint_vm_actor_interface::cetf::{self, CETFSYSCALL_ACTOR_ADDR};
+use fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR;
 use fendermint_vm_actor_interface::ipc;
 use fendermint_vm_actor_interface::system::SYSTEM_ACTOR_ADDR;
 use fendermint_vm_event::ParentFinalityMissingQuorum;
@@ -263,18 +262,6 @@ where
                         .deliver(state, VerifiableMessage::NotVerify(msg))
                         .await
                         .context("failed to check cetf tag")?;
-
-                    Ok(((env, state), ChainMessageApplyRet::Signed(ret)))
-                }
-                CetfMessage::BlockHashTag(hash, sig) => {
-                    let msg = cetf_blockhash_tag_msg_to_fvm(&(hash, sig))
-                        .context("failed to syntesize FVM message")?;
-
-                    let (state, ret) = self
-                        .inner
-                        .deliver(state, VerifiableMessage::NotVerify(msg))
-                        .await
-                        .context("failed to check cetf block hash tag")?;
 
                     Ok(((env, state), ChainMessageApplyRet::Signed(ret)))
                 }
@@ -525,18 +512,6 @@ where
 
                     Ok((state, Ok(ret)))
                 }
-                CetfMessage::BlockHashTag(hash, sig) => {
-                    let msg = cetf_blockhash_tag_msg_to_fvm(&(hash, sig))
-                        .context("failed to syntesize FVM message")?;
-
-                    let (state, ret) = self
-                        .inner
-                        .check(state, VerifiableMessage::NotVerify(msg), is_recheck)
-                        .await
-                        .context("failed to check cetf block hash tag")?;
-
-                    Ok((state, Ok(ret)))
-                }
                 CetfMessage::BlockHeightTag(height, sig) => {
                     let msg = cetf_blockheight_tag_msg_to_fvm(&(height, sig))
                         .context("failed to syntesize FVM message")?;
@@ -681,29 +656,6 @@ fn cetf_tag_msg_to_fvm(tag_msg: &(u64, BlsSignature)) -> anyhow::Result<FvmMessa
     Ok(msg)
 }
 
-fn cetf_blockhash_tag_msg_to_fvm(
-    tag_msg: &(BlockHash, BlsSignature),
-) -> anyhow::Result<FvmMessage> {
-    let params = RawBytes::serialize(&fendermint_actor_cetf::AddSignedBlockHashTagParams {
-        hash: tag_msg.0,
-        signature: tag_msg.1.clone(),
-    })?;
-    let msg = FvmMessage {
-        from: SYSTEM_ACTOR_ADDR,
-        to: CETFSYSCALL_ACTOR_ADDR,
-        // TODO: I cant remember if system actor nonces matter
-        sequence: 0,
-        gas_limit: BLOCK_GAS_LIMIT * 10000,
-        method_num: fendermint_actor_cetf::Method::AddSignedBlockHashTag as u64,
-        params,
-        value: Default::default(),
-        version: Default::default(),
-        gas_fee_cap: Default::default(),
-        gas_premium: Default::default(),
-    };
-
-    Ok(msg)
-}
 fn cetf_blockheight_tag_msg_to_fvm(tag_msg: &(u64, BlsSignature)) -> anyhow::Result<FvmMessage> {
     let params = RawBytes::serialize(&fendermint_actor_cetf::AddSignedBlockHeightTagParams {
         height: tag_msg.0,
