@@ -43,7 +43,7 @@ pub struct ValidatorContext<C> {
     /// BLS secret key used for signing CETF tags
     bls_secret_key: bls_signatures::PrivateKey,
     /// BLS public key used for verifying CETF tags
-    bls_public_key: bls_signatures::PublicKey,
+    _bls_public_key: bls_signatures::PublicKey,
     /// Used to broadcast transactions. It might use a different secret key for
     /// signing transactions than the validator's block producing key.
     broadcaster: Broadcaster<C>,
@@ -62,7 +62,7 @@ impl<C> ValidatorContext<C> {
             secret_key,
             public_key,
             bls_secret_key,
-            bls_public_key,
+            _bls_public_key: bls_public_key,
             broadcaster,
         }
     }

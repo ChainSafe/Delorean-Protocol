@@ -60,8 +60,8 @@ abigen!(
             "inputs": [
                 {
                     "name": "tag",
-                    "type": "uint64",
-                    "internalType": "uint64"
+                    "type": "bytes",
+                    "internalType": "bytes"
                 }
             ],
             "outputs": [
@@ -267,8 +267,8 @@ async fn main() {
         }
         Commands::CallExampleContract { address } => {
             let contract = example_contract(&address);
-
-            let call = contract.release_key(88);
+            let tag: [u8; 32] = std::array::from_fn(|i| i as u8);
+            let call = contract.release_key(tag.into());
 
             let result: I256 = invoke_or_call_contract(&mut client, &address, call, true)
                 .await
