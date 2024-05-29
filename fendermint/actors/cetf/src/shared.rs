@@ -113,16 +113,22 @@ pub struct AddSignedTagParams {
 
 #[derive(Deserialize, Serialize, Clone, Copy, Eq, PartialEq, Debug, Default)]
 #[serde(transparent)]
-pub struct BlockHash(#[serde(with = "strict_bytes")] pub [u8; 32]);
+pub struct Hash32(#[serde(with = "strict_bytes")] pub [u8; 32]);
 
-impl MapKey for BlockHash {
+impl MapKey for Hash32 {
     fn to_bytes(&self) -> Result<Vec<u8>, String> {
         Ok(self.0.to_vec())
     }
     fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
         let mut buf = [0; 32];
         buf.copy_from_slice(&bytes);
-        Ok(BlockHash(buf))
+        Ok(Hash32(buf))
+    }
+}
+
+impl From<[u8; 32]> for Hash32 {
+    fn from(bytes: [u8; 32]) -> Self {
+        Hash32(bytes)
     }
 }
 
