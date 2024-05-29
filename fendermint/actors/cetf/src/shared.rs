@@ -106,6 +106,7 @@ pub struct AddSignedBlockHashTagParams {
 #[repr(u64)]
 pub enum Method {
     Constructor = frc42_dispatch::method_hash!("Constructor"),
+    Echo = frc42_dispatch::method_hash!("Echo"),
     EnqueueTag = frc42_dispatch::method_hash!("EnqueueTag"),
     GetTag = frc42_dispatch::method_hash!("GetTag"),
     AddValidator = frc42_dispatch::method_hash!("AddValidator"),

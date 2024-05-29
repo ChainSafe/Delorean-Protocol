@@ -8,17 +8,20 @@
 //!
 //! # Usage
 //! ```text
-//! cargo run -p cetf_tests --example delorean -- register-bls --secret-key test-network/keys/eric.sk --bls-secret-key test-network/keys/eric.bls.sk --verbose
+//! cargo run --example delorean -- --secret-key test-data/keys/volvo.sk queue-tag
 //! ```
 
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context};
 use bls_signatures::Serialize;
+use bytes::Bytes;
 use clap::{Parser, Subcommand};
+use ethers::abi::Tokenizable;
+use ethers::prelude::*;
 use fendermint_actor_cetf as cetf_actor;
 use fendermint_rpc::query::QueryClient;
-use fendermint_vm_actor_interface::eam::EthAddress;
+use fendermint_vm_actor_interface::eam::{self, CreateReturn, EthAddress};
 use fendermint_vm_message::query::FvmQueryHeight;
 use fvm_ipld_encoding::RawBytes;
 use fvm_shared::address::Address;
@@ -31,7 +34,13 @@ use fvm_shared::econ::TokenAmount;
 
 use fendermint_rpc::client::FendermintClient;
 use fendermint_rpc::message::{GasParams, SignedMessageFactory};
-use fendermint_rpc::tx::{TxClient, TxCommit};
+use fendermint_rpc::tx::{CallClient, TxClient, TxCommit};
+
+type MockProvider = ethers::providers::Provider<ethers::providers::MockProvider>;
+type MockContractCall<T> = ethers::prelude::ContractCall<MockProvider, T>;
+
+const CONTRACT_SPEC_JSON: &str =
+    include_str!("../../../../contracts/out/Example.sol/CetfExample.json");
 
 lazy_static! {
     /// Default gas params based on the testkit.
@@ -41,6 +50,31 @@ lazy_static! {
         gas_premium: TokenAmount::default(),
     };
 }
+
+abigen!(
+    CetfExample,
+    r#"[
+        {
+            "type": "function",
+            "name": "releaseKey",
+            "inputs": [
+                {
+                    "name": "tag",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "int256",
+                    "internalType": "int256"
+                }
+            ],
+            "stateMutability": "nonpayable"
+        }
+    ]"#
+);
 
 #[derive(Parser, Debug)]
 pub struct Options {
@@ -73,6 +107,10 @@ enum Commands {
         bls_secret_key: PathBuf,
     },
     QueueTag,
+    DeployExampleContract,
+    CallExampleContract {
+        address: String,
+    },
 }
 
 impl Options {
@@ -163,10 +201,8 @@ async fn main() {
                 &mut client,
                 fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
                 cetf_actor::Method::EnqueueTag as u64,
-                RawBytes::serialize(cetf_actor::EnqueueTagParams {
-                    tag: [88_u8; 32],
-                })
-                .expect("failed to serialize params"),
+                RawBytes::serialize(cetf_actor::EnqueueTagParams { tag: [88_u8; 32] })
+                    .expect("failed to serialize params"),
                 TokenAmount::from_whole(0),
                 GAS_PARAMS.clone(),
             )
@@ -177,7 +213,104 @@ async fn main() {
             assert!(res.response.tx_result.code.is_ok(), "deliver is ok");
             assert!(res.return_data.is_some());
         }
+        Commands::DeployExampleContract => {
+            let spec: serde_json::Value =
+                serde_json::from_str(CONTRACT_SPEC_JSON).expect("failed to parse contract spec");
+
+            let example_contract = hex::decode(
+                &spec["bytecode"]["object"]
+                    .as_str()
+                    .expect("missing bytecode")
+                    .trim_start_matches("0x"),
+            )
+            .expect("invalid hex");
+
+            let res = TxClient::<TxCommit>::fevm_create(
+                &mut client,
+                Bytes::from(example_contract),
+                Bytes::default(),
+                TokenAmount::default(),
+                GAS_PARAMS.clone(),
+            )
+            .await
+            .expect("error deploying contract");
+
+            tracing::info!(tx_hash = ?res.response.hash, "deployment transaction");
+
+            let ret = res
+                .return_data
+                .ok_or(anyhow!(
+                    "no CreateReturn data; response was {:?}",
+                    res.response
+                ))
+                .expect("failed to get CreateReturn data");
+
+            tracing::info!(address = ?ret.eth_address, "contract deployed");
+        }
+        Commands::CallExampleContract { address } => {
+            let contract = example_contract(&address);
+
+            let call = contract.release_key([99_u8; 32]);
+
+            let result: I256 = invoke_or_call_contract(&mut client, &address, call, true)
+                .await
+                .expect("failed to call contract");
+
+            tracing::info!(result = ?result, "contract call result");
+        }
     }
+}
+
+/// Invoke FEVM through Tendermint with the calldata encoded by ethers, decoding the result into the expected type.
+async fn invoke_or_call_contract<T: Tokenizable>(
+    client: &mut (impl TxClient<TxCommit> + CallClient),
+    contract_eth_addr: &str,
+    call: MockContractCall<T>,
+    in_transaction: bool,
+) -> anyhow::Result<T> {
+    let calldata: ethers::types::Bytes = call
+        .calldata()
+        .expect("calldata should contain function and parameters");
+
+    let contract_addr = eth_addr_to_eam(contract_eth_addr);
+
+    // We can perform the read as a distributed transaction (if we don't trust any particular node to give the right answer),
+    // or we can send a query with the same message and get a result without involving a transaction.
+    let return_data = if in_transaction {
+        let res = client
+            .fevm_invoke(
+                contract_addr,
+                calldata.0,
+                TokenAmount::default(),
+                GAS_PARAMS.clone(),
+            )
+            .await
+            .context("failed to invoke FEVM")?;
+
+        tracing::info!(tx_hash = ?res.response.hash, "invoked transaction");
+
+        res.return_data
+    } else {
+        let res = client
+            .fevm_call(
+                contract_addr,
+                calldata.0,
+                TokenAmount::default(),
+                GAS_PARAMS.clone(),
+                FvmQueryHeight::default(),
+            )
+            .await
+            .context("failed to call FEVM")?;
+
+        res.return_data
+    };
+
+    let bytes = return_data.ok_or(anyhow!("the contract did not return any data"))?;
+
+    let res = decode_function_data(&call.function, bytes, false)
+        .context("error deserializing return data")?;
+
+    Ok(res)
 }
 
 /// Get the next sequence number (nonce) of an account.
@@ -191,4 +324,23 @@ async fn sequence(client: &impl QueryClient, addr: &Address) -> anyhow::Result<u
         Some((_id, state)) => Ok(state.sequence),
         None => Err(anyhow!("cannot find actor {addr}")),
     }
+}
+
+/// Create an instance of the statically typed contract client.
+fn example_contract(contract_eth_addr: &str) -> CetfExample<MockProvider> {
+    // A dummy client that we don't intend to use to call the contract or send transactions.
+    let (client, _mock) = ethers::providers::Provider::mocked();
+    let contract_h160_addr = ethers::core::types::Address::from_slice(
+        hex::decode(contract_eth_addr.trim_start_matches("0x"))
+            .unwrap()
+            .as_slice(),
+    );
+    let contract = CetfExample::new(contract_h160_addr, std::sync::Arc::new(client));
+    contract
+}
+
+fn eth_addr_to_eam(eth_addr: &str) -> Address {
+    let eth_addr = hex::decode(eth_addr.trim_start_matches("0x")).expect("valid hex");
+    Address::new_delegated(eam::EAM_ACTOR_ID, &eth_addr)
+        .expect("ETH address to delegated should work")
 }
