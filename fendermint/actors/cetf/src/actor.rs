@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0, MIT
 
 use crate::state::State;
-use crate::AddSignedBlockHashTagParams;
 use crate::AddSignedBlockHeightTagParams;
 use crate::AddSignedTagParams;
 use crate::AddValidatorParams;
@@ -31,7 +30,7 @@ impl Actor {
         Ok(())
     }
 
-    pub fn echo(rt: &impl Runtime, params: ()) -> Result<(), ActorError> {
+    pub fn echo(rt: &impl Runtime, _params: ()) -> Result<(), ActorError> {
         rt.validate_immediate_caller_accept_any()?;
         log::info!(
             "echo called by {} from origin {}",

@@ -96,12 +96,6 @@ pub struct AddSignedBlockHeightTagParams {
     pub signature: BlsSignature,
 }
 
-#[derive(Default, Debug, Serialize_tuple, Deserialize_tuple)]
-pub struct AddSignedBlockHashTagParams {
-    pub hash: BlockHash,
-    pub signature: BlsSignature,
-}
-
 #[derive(FromPrimitive)]
 #[repr(u64)]
 pub enum Method {

@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use async_trait::async_trait;
 use bls_signatures::Serialize as _;
@@ -116,7 +116,7 @@ where
             let st: fendermint_actor_cetf::State = state.store_get_cbor(&act_st.state)?.unwrap();
             st.enabled
         } else {
-            return Err(anyhow!("no CETF actor found!"));
+            bail!("no CETF actor found!");
         };
 
         if !is_enabled {
@@ -152,14 +152,12 @@ where
                     state.store_get_cbor(&act_st.state)?.unwrap();
                 (st.enabled, st.get_validators_keymap(&store)?)
             } else {
-                return Err(anyhow!("no CETF actor found!"));
+                bail!("no CETF actor found!");
             };
 
             if !is_enabled {
                 if !tags.0.is_empty() || !sigs.0.is_empty() {
-                    return Err(anyhow!(
-                        "CETF Actor is disabled! There should not be and tags or signatures"
-                    ));
+                    bail!("CETF Actor is disabled! There should not be and tags or signatures");
                 }
                 return Ok((state, None));
             }
