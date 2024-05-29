@@ -40,11 +40,11 @@ impl Actor {
         );
 
         rt.transaction(|st: &mut State, rt| {
-            // if st.enabled == false {
-            //     return Err(ActorError::forbidden(
-            //         "CETF actor is disabled. Not all validators have added their keys.".to_owned(),
-            //     ));
-            // }
+            if st.enabled == false {
+                return Err(ActorError::forbidden(
+                    "CETF actor is disabled. Not all validators have added their keys.".to_owned(),
+                ));
+            }
             // NOTE: use of epoch is intentional here. In fendermint the epoch is the block height
             st.add_tag_at_height(rt, &rt.curr_epoch(), &params.tag)?;
             Ok(())
