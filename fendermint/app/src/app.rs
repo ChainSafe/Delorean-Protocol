@@ -574,9 +574,7 @@ where
                     }
                     SignatureKind::BlockHash(_) => {
                         let hash = request.hash.as_ref().to_vec();
-                        Ok(TagKind::BlockHash(
-                            hash.try_into().context("failed to convert hash")?,
-                        ))
+                        Ok(TagKind::BlockHash(hash.try_into().unwrap()))
                     }
                     SignatureKind::BlockHeight(_) => {
                         let height = block_height;

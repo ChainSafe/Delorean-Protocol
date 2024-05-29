@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use bls_signatures::Serialize as _;
 use fendermint_actor_cetf::BlsSignature;
 use fendermint_actor_cetf::Tag;
+use k256::elliptic_curve::ff::BitViewSized;
 use num_traits::ToBytes;
 
 use crate::ExtendVoteInterpreter;
@@ -43,7 +44,7 @@ pub enum TagKind {
 impl TagKind {
     pub fn to_vec(&self) -> Vec<u8> {
         match self {
-            TagKind::Cetf(tag) => tag.to_vec(),
+            TagKind::Cetf(tag) => tag.to_be_bytes().to_vec(),
             TagKind::BlockHash(hash) => hash.as_bytes().to_vec(),
             TagKind::BlockHeight(height) => height.to_be_bytes().to_vec(),
         }
@@ -51,7 +52,7 @@ impl TagKind {
     pub fn sign<C>(&self, ctx: &ValidatorContext<C>) -> anyhow::Result<SignatureKind> {
         match self {
             TagKind::Cetf(tag) => {
-                let sig = ctx.sign_tag(tag.as_slice());
+                let sig = ctx.sign_tag(&tag.to_be_bytes());
                 Ok(SignatureKind::Cetf(BlsSignature(
                     sig.as_bytes().try_into().unwrap(),
                 )))

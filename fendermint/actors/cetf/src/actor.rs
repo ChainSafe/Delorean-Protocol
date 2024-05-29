@@ -24,28 +24,37 @@ impl Actor {
     /// Initialize the HAMT store for tags in the actor state
     /// Callable only by the system actor at genesis
     pub fn constructor(rt: &impl Runtime) -> Result<(), ActorError> {
-        log::info!("cetf actor constructor called");
         rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
-
+        log::info!("cetf actor constructor called");
         let st = State::new(rt.store())?;
         rt.create(&st)?;
+        Ok(())
+    }
 
+    pub fn echo(rt: &impl Runtime, params: ()) -> Result<(), ActorError> {
+        rt.validate_immediate_caller_accept_any()?;
+        log::info!("echo called by {} from origin {}", rt.message().caller(), rt.message().origin());
         Ok(())
     }
 
     /// Add a new tag to the state to be signed by the validators
     /// Callable by anyone and designed to be called from Solidity contracts
-    pub fn enqueue_tag(rt: &impl Runtime, params: EnqueueTagParams) -> Result<(), ActorError> {
-        log::info!("enqueue_tag called");
+    pub fn enqueue_tag(rt: &impl Runtime, tag: u64) -> Result<(), ActorError> {
         rt.validate_immediate_caller_accept_any()?;
+
+        log::info!(
+            "cetf actor enqueue_tag called by {} with tag {:?}",
+            rt.message().caller(),
+            tag
+        );
+
         rt.transaction(|st: &mut State, rt| {
-            if st.enabled == false {
-                return Err(ActorError::forbidden(
-                    "CETF actor is disabled. Not all validators have added their keys.".to_owned(),
-                ));
+            if st.enabled {
+                // NOTE: use of epoch is intentional here. In fendermint the epoch is the block height
+                st.add_tag_at_height(rt, &(rt.curr_epoch() as u64), &tag)?;
+            } else {
+                log::info!("CETF actor is disabled. Not all validators have added their keys. No tag was enqueued.");
             }
-            // NOTE: use of epoch is intentional here. In fendermint the epoch is the block height
-            st.add_tag_at_height(rt, &(rt.curr_epoch() as u64), &params.tag)?;
             Ok(())
         })?;
 
@@ -150,6 +159,7 @@ impl ActorCode for Actor {
 
     actor_dispatch! {
         Constructor => constructor,
+        Echo => echo,
         EnqueueTag => enqueue_tag,
         GetTag => get_tag,
         Enable => enable,

@@ -10,7 +10,7 @@ use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 pub type BlockHeight = u64;
-pub type Tag = [u8; 32];
+pub type Tag = u64;
 /// A BLS Public Key used for signing tags.
 #[derive(Deserialize, Serialize, Clone, Copy, Eq, PartialEq, Debug)]
 #[serde(transparent)]
@@ -106,6 +106,7 @@ pub struct AddSignedBlockHashTagParams {
 #[repr(u64)]
 pub enum Method {
     Constructor = frc42_dispatch::method_hash!("Constructor"),
+    Echo = frc42_dispatch::method_hash!("Echo"),
     EnqueueTag = frc42_dispatch::method_hash!("EnqueueTag"),
     GetTag = frc42_dispatch::method_hash!("GetTag"),
     AddValidator = frc42_dispatch::method_hash!("AddValidator"),
