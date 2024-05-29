@@ -96,12 +96,6 @@ pub struct AddSignedBlockHeightTagParams {
     pub signature: BlsSignature,
 }
 
-#[derive(Default, Debug, Serialize_tuple, Deserialize_tuple)]
-pub struct AddSignedBlockHashTagParams {
-    pub hash: BlockHash,
-    pub signature: BlsSignature,
-}
-
 #[derive(FromPrimitive)]
 #[repr(u64)]
 pub enum Method {
@@ -113,6 +107,5 @@ pub enum Method {
     Enable = frc42_dispatch::method_hash!("Enable"),
     Disable = frc42_dispatch::method_hash!("Disable"),
     AddSignedTag = frc42_dispatch::method_hash!("AddSignedTag"),
-    AddSignedBlockHashTag = frc42_dispatch::method_hash!("AddSignedBlockHashTag"),
     AddSignedBlockHeightTag = frc42_dispatch::method_hash!("AddSignedBlockHeightTag"),
 }
