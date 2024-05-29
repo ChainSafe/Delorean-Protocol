@@ -166,25 +166,29 @@ fi
 script = """
 cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/cetf-test
 
-cargo run --example register_bls -- \
+cargo run --example delorean -- \
   --secret-key test-data/keys/veronica.sk \
-  --bls-secret-key test-data/keys/veronica.bls.sk \
-  ${VERBOSITY}
+  ${VERBOSITY} \
+  register-bls \
+  --bls-secret-key test-data/keys/veronica.bls.sk
 
-cargo run --example register_bls -- \
+cargo run --example delorean -- \
   --secret-key test-data/keys/victoria.sk \
-  --bls-secret-key test-data/keys/victoria.bls.sk \
-  ${VERBOSITY}
+  ${VERBOSITY} \
+  register-bls \
+  --bls-secret-key test-data/keys/victoria.bls.sk
 
-cargo run --example register_bls -- \
+cargo run --example delorean -- \
   --secret-key test-data/keys/vivienne.sk \
-  --bls-secret-key test-data/keys/vivienne.bls.sk \
-  ${VERBOSITY}
+  ${VERBOSITY} \
+  register-bls \
+  --bls-secret-key test-data/keys/vivienne.bls.sk
 
-cargo run --example register_bls -- \
+cargo run --example delorean -- \
   --secret-key test-data/keys/volvo.sk \
-  --bls-secret-key test-data/keys/volvo.bls.sk \
-  ${VERBOSITY}
+  ${VERBOSITY} \
+  register-bls \
+  --bls-secret-key test-data/keys/volvo.bls.sk
 """
 
 

@@ -1,21 +1,21 @@
 // Copyright 2022-2024 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-//! Example of using the RPC library to send tokens from an f410 account to an f1 account.
+//! Helper commands for interacting with the Delorean/CETF actor via RPC
 //!
 //! The example assumes that Tendermint and Fendermint have been started
 //! and are running locally.
 //!
 //! # Usage
 //! ```text
-//! cargo run -p fendermint_rpc --release --example transfer -- --secret-key test-network/keys/eric.sk --verbose
+//! cargo run -p cetf_tests --example delorean -- register-bls --secret-key test-network/keys/eric.sk --bls-secret-key test-network/keys/eric.bls.sk --verbose
 //! ```
 
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context};
 use bls_signatures::Serialize;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use fendermint_actor_cetf as cetf_actor;
 use fendermint_rpc::query::QueryClient;
 use fendermint_vm_actor_interface::eam::EthAddress;
@@ -57,13 +57,22 @@ pub struct Options {
     #[arg(long, short)]
     pub verbose: bool,
 
+    #[command(subcommand)]
+    command: Commands,
+
     /// Path to the secret key to deploy with, expected to be in Base64 format,
     /// and that it has a corresponding f410 account in genesis.
     #[arg(long, short)]
     pub secret_key: PathBuf,
+}
 
-    #[arg(long, short)]
-    pub bls_secret_key: PathBuf,
+#[derive(Debug, Subcommand)]
+enum Commands {
+    RegisterBls {
+        #[arg(long, short)]
+        bls_secret_key: PathBuf,
+    },
+    QueueTag,
 }
 
 impl Options {
@@ -92,17 +101,6 @@ async fn main() {
 
     let pk = sk.public_key();
 
-    let bls_sk = {
-        let b64 =
-            std::fs::read_to_string(&opts.bls_secret_key).expect("failed to read bls secret key");
-        bls_signatures::PrivateKey::from_bytes(
-            &fendermint_crypto::from_b64(&b64).expect("failed to decode b64 bls secret key"),
-        )
-        .expect("failed to parse bls secret key")
-    };
-
-    let bls_pk = bls_sk.public_key();
-
     let f1_addr = Address::new_secp256k1(&pk.serialize()).expect("valid public key");
 
     // Query the account nonce from the state, so it doesn't need to be passed as an arg.
@@ -122,29 +120,48 @@ async fn main() {
 
     let mut client = client.bind(mf);
 
-    let res = TxClient::<TxCommit>::transaction(
-        &mut client,
-        fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
-        cetf_actor::Method::AddValidator as u64,
-        RawBytes::serialize(cetf_actor::AddValidatorParams {
-            address: f1_addr,
-            public_key: fendermint_actor_cetf::BlsPublicKey(
-                bls_pk
-                    .as_bytes()
-                    .try_into()
-                    .expect("Failed to convert BLS public key to bytes"),
-            ),
-        })
-        .expect("failed to serialize add validator params"),
-        TokenAmount::from_whole(0),
-        GAS_PARAMS.clone(),
-    )
-    .await
-    .expect("transfer failed");
+    match opts.command {
+        Commands::RegisterBls { bls_secret_key } => {
+            let bls_sk = {
+                let b64 = std::fs::read_to_string(&bls_secret_key)
+                    .expect("failed to read bls secret key");
+                bls_signatures::PrivateKey::from_bytes(
+                    &fendermint_crypto::from_b64(&b64)
+                        .expect("failed to decode b64 bls secret key"),
+                )
+                .expect("failed to parse bls secret key")
+            };
 
-    assert!(res.response.check_tx.code.is_ok(), "check is ok");
-    assert!(res.response.tx_result.code.is_ok(), "deliver is ok");
-    assert!(res.return_data.is_some());
+            let bls_pk = bls_sk.public_key();
+
+            let res = TxClient::<TxCommit>::transaction(
+                &mut client,
+                fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
+                cetf_actor::Method::AddValidator as u64,
+                RawBytes::serialize(cetf_actor::AddValidatorParams {
+                    address: f1_addr,
+                    public_key: fendermint_actor_cetf::BlsPublicKey(
+                        bls_pk
+                            .as_bytes()
+                            .try_into()
+                            .expect("Failed to convert BLS public key to bytes"),
+                    ),
+                })
+                .expect("failed to serialize add validator params"),
+                TokenAmount::from_whole(0),
+                GAS_PARAMS.clone(),
+            )
+            .await
+            .expect("transfer failed");
+
+            assert!(res.response.check_tx.code.is_ok(), "check is ok");
+            assert!(res.response.tx_result.code.is_ok(), "deliver is ok");
+            assert!(res.return_data.is_some());
+        }
+        Commands::QueueTag => {
+            todo!();
+        }
+    }
 }
 
 /// Get the next sequence number (nonce) of an account.
