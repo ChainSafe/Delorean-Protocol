@@ -39,7 +39,7 @@ use fendermint_rpc::tx::{CallClient, TxClient, TxCommit};
 type MockProvider = ethers::providers::Provider<ethers::providers::MockProvider>;
 type MockContractCall<T> = ethers::prelude::ContractCall<MockProvider, T>;
 
-const CONTRACT_SPEC_JSON: &str =
+const EXAMPLE_CONTRACT_SPEC_JSON: &str =
     include_str!("../../../../contracts/out/Example.sol/CetfExample.json");
 
 lazy_static! {
@@ -60,8 +60,8 @@ abigen!(
             "inputs": [
                 {
                     "name": "tag",
-                    "type": "bytes32",
-                    "internalType": "bytes32"
+                    "type": "uint64",
+                    "internalType": "uint64"
                 }
             ],
             "outputs": [
@@ -72,6 +72,16 @@ abigen!(
                 }
             ],
             "stateMutability": "nonpayable"
+        },
+        {
+            "type": "error",
+            "name": "ActorNotFound",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "FailToCallActor",
+            "inputs": []
         }
     ]"#
 );
@@ -197,11 +207,16 @@ async fn main() {
             assert!(res.return_data.is_some());
         }
         Commands::QueueTag => {
+
+            let bytes = RawBytes::serialize(88_u64)
+            .expect("failed to serialize params");
+            tracing::info!("CBOR encoded input should look like: {:?}", bytes);
+
             let res = TxClient::<TxCommit>::transaction(
                 &mut client,
                 fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
                 cetf_actor::Method::EnqueueTag as u64,
-                RawBytes::serialize(cetf_actor::EnqueueTagParams { tag: [88_u8; 32] })
+                RawBytes::serialize(88_64)
                     .expect("failed to serialize params"),
                 TokenAmount::from_whole(0),
                 GAS_PARAMS.clone(),
@@ -215,7 +230,7 @@ async fn main() {
         }
         Commands::DeployExampleContract => {
             let spec: serde_json::Value =
-                serde_json::from_str(CONTRACT_SPEC_JSON).expect("failed to parse contract spec");
+                serde_json::from_str(EXAMPLE_CONTRACT_SPEC_JSON).expect("failed to parse contract spec");
 
             let example_contract = hex::decode(
                 &spec["bytecode"]["object"]
@@ -224,6 +239,8 @@ async fn main() {
                     .trim_start_matches("0x"),
             )
             .expect("invalid hex");
+
+            tracing::info!("Deploying Example Contract");
 
             let res = TxClient::<TxCommit>::fevm_create(
                 &mut client,
@@ -244,13 +261,14 @@ async fn main() {
                     res.response
                 ))
                 .expect("failed to get CreateReturn data");
+            let address = ret.eth_address;
+            tracing::info!(address = ?address, "contract deployed");
 
-            tracing::info!(address = ?ret.eth_address, "contract deployed");
         }
         Commands::CallExampleContract { address } => {
             let contract = example_contract(&address);
 
-            let call = contract.release_key([99_u8; 32]);
+            let call = contract.release_key(88);
 
             let result: I256 = invoke_or_call_contract(&mut client, &address, call, true)
                 .await

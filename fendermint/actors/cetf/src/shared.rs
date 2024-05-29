@@ -10,7 +10,7 @@ use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 pub type BlockHeight = u64;
-pub type Tag = [u8; 32];
+pub type Tag = u64;
 /// A BLS Public Key used for signing tags.
 #[derive(Deserialize, Serialize, Clone, Copy, Eq, PartialEq, Debug)]
 #[serde(transparent)]
