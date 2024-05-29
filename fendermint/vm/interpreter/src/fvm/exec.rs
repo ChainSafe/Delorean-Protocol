@@ -3,9 +3,14 @@
 
 use anyhow::Context;
 use async_trait::async_trait;
+use fvm_ipld_encoding::CborStore;
 use std::collections::HashMap;
+use tendermint::block::Height;
 
-use fendermint_vm_actor_interface::{cetf, chainmetadata, cron, system};
+use fendermint_vm_actor_interface::{
+    cetf::{CETFSYSCALL_ACTOR_ADDR, CETFSYSCALL_ACTOR_ID},
+    chainmetadata, cron, system,
+};
 use fvm::executor::ApplyRet;
 use fvm_ipld_blockstore::Blockstore;
 use fvm_shared::{address::Address, ActorID, MethodNum, BLOCK_GAS_LIMIT};
@@ -14,7 +19,7 @@ use tendermint_rpc::Client;
 use crate::ExecInterpreter;
 
 use super::{
-    checkpoint::{self, PowerUpdates},
+    checkpoint::{self, bft_power_table, PowerUpdates},
     state::FvmExecState,
     FvmMessage, FvmMessageInterpreter,
 };
@@ -132,29 +137,65 @@ where
             }
         }
 
-        // invoke a method on the actor every block to test logging
-        {
-            let params =
-                fvm_ipld_encoding::RawBytes::serialize(fendermint_actor_cetf::EnqueueTagParams {
-                    tag: [11u8; 32],
-                })?;
-            let msg = FvmMessage {
-                from: system::SYSTEM_ACTOR_ADDR,
-                to: cetf::CETFSYSCALL_ACTOR_ADDR,
-                sequence: height as u64,
-                gas_limit,
-                method_num: fendermint_actor_cetf::Method::EnqueueTag as u64,
-                params,
-                value: Default::default(),
-                version: Default::default(),
-                gas_fee_cap: Default::default(),
-                gas_premium: Default::default(),
-            };
+        if state.block_height() as u64 > 0 {
+            let bft_keys =
+                bft_power_table(&self.client, Height::try_from(state.block_height() as u64)?)
+                    .await
+                    .context("failed to get power table")?
+                    .0
+                    .into_iter()
+                    .map(|k| k.public_key.0)
+                    .map(|pk| {
+                        Address::new_secp256k1(&pk.serialize())
+                            .context("failed to turn TM public key into address")
+                    })
+                    .collect::<anyhow::Result<Vec<_>>>()?;
+            let (is_enabled, registered_keys) = {
+                if let Some(act_st) = state.state_tree().get_actor(CETFSYSCALL_ACTOR_ID)? {
+                    let st: fendermint_actor_cetf::State =
+                        state.state_tree().store().get_cbor(&act_st.state)?.unwrap();
+                    Ok((
+                        st.enabled,
+                        st.get_validators_keymap(state.state_tree().store())?,
+                    ))
+                } else {
+                    Err(anyhow::anyhow!("no CETF actor found!"))
+                }
+            }?;
 
-            let (apply_ret, _) = state.execute_implicit(msg)?;
+            if !is_enabled {
+                let mut to_enable = true;
+                for key in bft_keys {
+                    to_enable &= registered_keys.contains_key(&key)?;
+                }
 
-            if let Some(err) = apply_ret.failure_info {
-                anyhow::bail!("failed to apply cetf message: {}", err);
+                if to_enable {
+                    tracing::info!("All keys found in map! Enabling CETF actor");
+                    let msg = FvmMessage {
+                        from: system::SYSTEM_ACTOR_ADDR,
+                        to: CETFSYSCALL_ACTOR_ADDR,
+                        sequence: height as u64,
+                        gas_limit,
+                        method_num: fendermint_actor_cetf::Method::Enable as u64,
+                        params: Default::default(),
+                        value: Default::default(),
+                        version: Default::default(),
+                        gas_fee_cap: Default::default(),
+                        gas_premium: Default::default(),
+                    };
+
+                    let (apply_ret, _) = state.execute_implicit(msg)?;
+
+                    if let Some(err) = apply_ret.failure_info {
+                        anyhow::bail!("failed to apply chainmetadata message: {}", err);
+                    } else {
+                        tracing::info!("CETF actor enable successful");
+                    }
+                } else {
+                    tracing::info!("Not all keys registered! Not enabling CETF actor");
+                }
+            } else {
+                tracing::debug!("CETF actor is enabled");
             }
         }
 

@@ -1,6 +1,7 @@
 // Copyright 2022-2024 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+pub mod cetf;
 mod check;
 mod exec;
 pub mod fevm;
@@ -8,7 +9,6 @@ mod genesis;
 pub mod ipc;
 mod query;
 pub mod snapshot;
-pub mod cetf;
 
 use std::sync::Arc;
 

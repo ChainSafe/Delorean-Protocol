@@ -31,21 +31,25 @@ pub trait GenesisInterpreter: Sync + Send {
 #[async_trait]
 pub trait ExtendVoteInterpreter: Sync + Send {
     type State: Send;
-    type Message: Send;
-    type Output;
+
+    type ExtendMessage: Send;
+    type VerifyMessage: Send;
+
+    type ExtendOutput;
+    type VerifyOutput;
 
     /// Sign the vote.
     async fn extend_vote(
         &self,
         state: Self::State,
-        msg: Self::Message,
-    ) -> anyhow::Result<Self::Output>;
+        msg: Self::ExtendMessage,
+    ) -> anyhow::Result<Self::ExtendOutput>;
 
     async fn verify_vote_extension(
         &self,
         state: Self::State,
-        msg: Self::Message,
-    ) -> anyhow::Result<(Self::State, Self::Output)>;
+        msg: Self::VerifyMessage,
+    ) -> anyhow::Result<(Self::State, Self::VerifyOutput)>;
 }
 
 /// Prepare and process transaction proposals.

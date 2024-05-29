@@ -83,7 +83,7 @@ integer-encoding = { version = "3.0.3", default-features = false }
 jsonrpc-v2 = { version = "0.11", default-features = false, features = [
   "bytes-v10",
 ] }
-k256 = "0.11" # Same as tendermint-rs
+k256 = "0.13.3" # Same as tendermint-rs
 lazy_static = "1.4"
 libipld = { version = "0.16", default-features = false, features = [
   "dag-cbor",

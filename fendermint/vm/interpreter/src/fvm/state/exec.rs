@@ -11,7 +11,8 @@ use fvm::{
     engine::MultiEngine,
     executor::{ApplyFailure, ApplyKind, ApplyRet, DefaultExecutor, Executor},
     machine::{DefaultMachine, Machine, Manifest, NetworkConfig},
-    state_tree::StateTree, DefaultKernel,
+    state_tree::StateTree,
+    DefaultKernel,
 };
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::RawBytes;
@@ -130,13 +131,13 @@ where
     ) -> anyhow::Result<Self> {
         let mut nc = NetworkConfig::new(params.network_version);
         nc.chain_id = ChainID::from(params.chain_id);
-
         // TODO: Configure:
         // * circ_supply; by default it's for Filecoin
         // * base_fee; by default it's zero
         let mut mc = nc.for_epoch(block_height, params.timestamp.0, params.state_root);
         mc.set_base_fee(params.base_fee.clone());
         mc.set_circulating_supply(params.circ_supply.clone());
+        mc.enable_actor_debugging();
 
         // Creating a new machine every time is prohibitively slow.
         // let ec = EngineConfig::from(&nc);

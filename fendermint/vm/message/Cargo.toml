@@ -30,6 +30,7 @@ fendermint_crypto = { path = "../../crypto" }
 fendermint_vm_encoding = { path = "../encoding" }
 fendermint_vm_actor_interface = { path = "../actor_interface" }
 fendermint_testing = { path = "../../testing", optional = true }
+fendermint_actor_cetf = { path = "../../actors/cetf" }
 
 [dev-dependencies]
 ethers = { workspace = true }

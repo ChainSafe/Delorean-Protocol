@@ -12,7 +12,6 @@ use anyhow::{anyhow, Context, Result};
 use async_stm::{atomically, atomically_or_err};
 use async_trait::async_trait;
 use bls_signatures::Serialize as _;
-use bytes::Bytes;
 use cid::Cid;
 use fendermint_abci::util::take_until_max_size;
 use fendermint_abci::{AbciResult, Application};
@@ -25,6 +24,7 @@ use fendermint_vm_interpreter::bytes::{
     BytesMessageApplyRes, BytesMessageCheckRes, BytesMessageQuery, BytesMessageQueryRes,
 };
 use fendermint_vm_interpreter::chain::{ChainEnv, ChainMessageApplyRet, IllegalMessage};
+use fendermint_vm_interpreter::fvm::extend::{SignatureKind, SignedTags, TagKind, Tags};
 use fendermint_vm_interpreter::fvm::state::cetf::get_tag_at_height;
 use fendermint_vm_interpreter::fvm::state::{
     empty_state_tree, CheckStateRef, FvmExecState, FvmGenesisState, FvmQueryState, FvmStateParams,
@@ -41,6 +41,7 @@ use fendermint_vm_message::query::FvmQueryHeight;
 use fendermint_vm_snapshot::{SnapshotClient, SnapshotError};
 use fvm::engine::MultiEngine;
 use fvm_ipld_blockstore::Blockstore;
+use fvm_ipld_encoding::{from_slice, to_vec};
 use fvm_shared::chainid::ChainID;
 use fvm_shared::clock::ChainEpoch;
 use fvm_shared::econ::TokenAmount;
@@ -49,10 +50,7 @@ use num_traits::Zero;
 use serde::{Deserialize, Serialize};
 use tendermint::abci::request::CheckTxKind;
 use tendermint::abci::{request, response};
-use tendermint::crypto::default::signature;
-use tendermint_rpc::endpoint::block_by_hash;
 use tracing::instrument;
-
 #[derive(Serialize)]
 #[repr(u8)]
 pub enum AppStoreKey {
@@ -393,8 +391,6 @@ where
         !(height == 0 && params.timestamp.0 == 0 && params.network_version == NetworkVersion::V0)
     }
 }
-// TODO: Properly import this
-pub type Tag = [u8; 32];
 // NOTE: The `Application` interface doesn't allow failures at the moment. The protobuf
 // of `Response` actually has an `Exception` type, so in theory we could use that, and
 // Tendermint would break up the connection. However, before the response could reach it,
@@ -436,21 +432,31 @@ where
     >,
     I: ExtendVoteInterpreter<
         State = FvmQueryState<SS>,
-        Message = Tag,
-        Output = Option<bls_signatures::Signature>,
+        ExtendMessage = Tags,
+        ExtendOutput = SignedTags,
+        VerifyMessage = (tendermint::account::Id, Tags, SignedTags),
+        VerifyOutput = Option<bool>,
     >,
 {
     async fn extend_vote(&self, request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
+        // Skip at block 0 no state yet.
+        if request.height.value() == 0 {
+            tracing::info!("Extend vote at height 0. Skipping.");
+            return Ok(response::ExtendVote {
+                vote_extension: Default::default(),
+            });
+        }
+
         let db = self.state_store_clone();
         let height = FvmQueryHeight::from(0);
         let (state_params, block_height) = self.state_params_at_height(height)?;
+
         let state_root = state_params.state_root;
-        // if !Self::can_query_state(block_height, &state_params) {
-        //     return Ok(invalid_query(
-        //         AppError::NotInitialized,
-        //         "The app hasn't been initialized yet.".to_owned(),
-        //     ));
-        // }
+
+        tracing::info!(
+            "extend_vote Creating FvmQueryState at height: {}",
+            block_height
+        );
 
         let state = FvmQueryState::new(
             db,
@@ -464,37 +470,50 @@ where
 
         // TODO: I think we actually want to do this in ExtendVoteInterpreter::extend_vote. Furthermote, we probably shouldnt ned to borrow db again.
         let db = self.state_store_clone();
-        let tag = get_tag_at_height(db, &state_root, block_height as i64)
-            .context("failed to get tag at height")?;
-        // tracing::info!("ExtendVote found tag at height {}: {:?}", block_height, tag);
-        let t: Option<[u8; 32]> = Some(
-            request
-                .hash
-                .as_ref()
-                .try_into()
-                .context("failed to convert hash")?,
-        );
-        if let Some(tag) = t {
-            // let signature = self
-            //     .interpreter
-            //     .extend_vote(state, tag)
-            //     .await
-            //     .context("failed to extend vote")?;
-            // match signature {
-            //     Some(sig) => Ok(response::ExtendVote {
-            //         vote_extension: sig.as_bytes().into(),
-            //     }),
-            //     None => Ok(response::ExtendVote {
-            //         vote_extension: Default::default(),
-            //     }),
-            // }
+
+        let tags = Tags({
+            // Check for cetf tag
+            let mut tags = vec![];
+
+            let cetf_tag = get_tag_at_height(db, &state_root, block_height)
+                .context("failed to get tag at height")?;
+
+            tracing::info!(
+                "ExtendVote cetf_tag at height {}: {:?}",
+                block_height,
+                cetf_tag
+            );
+            if let Some(tag) = cetf_tag {
+                tags.push(TagKind::Cetf(tag));
+            }
+
+            // Block hash
+            tags.push(TagKind::BlockHash(request.hash));
+
+            // Block height
+            tags.push(TagKind::BlockHeight(block_height));
+            tags
+        });
+
+        tracing::info!("My turn to ExtendVote! tags: {:?}", tags);
+
+        let signatures = self
+            .interpreter
+            .extend_vote(state, tags)
+            .await
+            .context("failed to extend vote")?;
+        tracing::info!("My turn to ExtendVote signatures: {:?}", signatures);
+
+        // Either is_enabled is false or nothing to sign (TODO: We should force signing)
+        if signatures.0.is_empty() {
             Ok(response::ExtendVote {
-                vote_extension: tag.to_vec().into(),
+                vote_extension: Default::default(),
             })
         } else {
-            return Ok(response::ExtendVote {
-                vote_extension: Default::default(),
-            });
+            let serialized = to_vec(&signatures).context("failed to serialize signatures")?;
+            Ok(response::ExtendVote {
+                vote_extension: serialized.into(),
+            })
         }
     }
 
@@ -502,26 +521,77 @@ where
         &self,
         request: request::VerifyVoteExtension,
     ) -> AbciResult<response::VerifyVoteExtension> {
-        // TODO: Implement this.
-        // 1. Get the BLS pubkey from some on-chain mapping from validators secp256k1 pubkey -> BLS pubkey.
-        // 2. Verify the signature using the BLS pubkey against tag (get from state).
-        // 3. Do some other checks e.g. is every tag signed? Because if not we reject. I think we want EVERY tag signed (assuming multiple)
-        if request.vote_extension.as_ref() == request.hash.as_ref() {
-            // tracing::info!(
-            //     "Vote extension detected: {:?}",
-            //     request.vote_extension.as_ref()
-            // );
-            Ok(response::VerifyVoteExtension::Accept)
-        } else if request.vote_extension.is_empty() {
-            // tracing::info!("Vote extension empty");
-            Ok(response::VerifyVoteExtension::Accept)
-        } else {
-            // tracing::info!(
-            //     "Incorrect vote extension: {:?} != {:?}",
-            //     request.vote_extension,
-            //     request.hash
-            // );
-            Ok(response::VerifyVoteExtension::Reject)
+        if request.height.value() == 0 && request.vote_extension.is_empty() {
+            tracing::info!("Verify vote extension at height 0. Skipping.");
+            return Ok(response::VerifyVoteExtension::Accept);
+        }
+
+        if request.vote_extension.is_empty() {
+            tracing::info!("Vote extension empty");
+            return Ok(response::VerifyVoteExtension::Accept);
+        }
+
+        tracing::info!(
+            "Vote extension detected: {:?}",
+            request.vote_extension.as_ref()
+        );
+
+        let db = self.state_store_clone();
+        let height = FvmQueryHeight::from(0);
+        let (state_params, block_height) = self.state_params_at_height(height)?;
+        let state_root = state_params.state_root;
+
+        tracing::info!(
+            "verify_vote_extension Creating FvmQueryState at height: {}",
+            block_height
+        );
+        let state = FvmQueryState::new(
+            db.clone(),
+            self.multi_engine.clone(),
+            block_height.try_into()?,
+            state_params,
+            self.check_state.clone(),
+            height == FvmQueryHeight::Pending,
+        )?;
+
+        let sigs: SignedTags =
+            from_slice(&request.vote_extension).context("failed to deserialize signatures")?;
+
+        let tags = Tags(
+            sigs.0
+                .iter()
+                .map(|sig_kind| match sig_kind {
+                    SignatureKind::Cetf(_) => {
+                        let db = db.clone();
+                        let tag = get_tag_at_height(db, &state_root, block_height)
+                            .context("failed to get tag at height")?
+                            .ok_or_else(|| anyhow!("failed to get tag at height: None"))?;
+
+                        Ok(TagKind::Cetf(tag))
+                    }
+                    SignatureKind::BlockHash(_) => {
+                        let hash = request.hash.as_ref().to_vec();
+                        Ok(TagKind::BlockHash(hash.try_into().unwrap()))
+                    }
+                    SignatureKind::BlockHeight(_) => {
+                        let height = block_height;
+                        Ok(TagKind::BlockHeight(height))
+                    }
+                })
+                .collect::<anyhow::Result<Vec<TagKind>>>()?,
+        );
+
+        let id = request.validator_address;
+
+        let (_, res) = self
+            .interpreter
+            .verify_vote_extension(state, (id, tags, sigs))
+            .await?;
+
+        match res {
+            Some(true) => Ok(response::VerifyVoteExtension::Accept),
+            Some(false) => Ok(response::VerifyVoteExtension::Reject),
+            None => Ok(response::VerifyVoteExtension::Accept),
         }
     }
 
@@ -735,6 +805,75 @@ where
         // TODO: I believe this is where we should aggregate the partial signatures from the previous block's
         // vote extensions (well technically in intepreter.prepare?) so that we can inject the aggregated
         // signature into a transaction to publish to the cetf actor so other contracts on chain can access it.
+        match request.local_last_commit {
+            Some(info) => {
+                // TODO: Better error handling
+                let votes = info
+                    .votes
+                    .into_iter()
+                    .map(|vote| {
+                        if vote.vote_extension.is_empty() {
+                            vec![]
+                        } else {
+                            from_slice::<SignedTags>(&vote.vote_extension).unwrap().0
+                        }
+                    })
+                    .flatten()
+                    .collect::<Vec<_>>();
+                let cetf_sigs = votes
+                    .iter()
+                    .filter(|t| matches!(t, SignatureKind::Cetf(_)))
+                    .map(SignatureKind::as_slice)
+                    .map(bls_signatures::Signature::from_bytes)
+                    .collect::<Result<Vec<_>, bls_signatures::Error>>()
+                    .unwrap();
+                let height_tags = votes
+                    .iter()
+                    .filter(|t| matches!(t, SignatureKind::BlockHeight(_)))
+                    .map(SignatureKind::as_slice)
+                    .map(bls_signatures::Signature::from_bytes)
+                    .collect::<Result<Vec<_>, bls_signatures::Error>>()
+                    .unwrap();
+                let hash_tags = votes
+                    .iter()
+                    .filter(|t| matches!(t, SignatureKind::BlockHash(_)))
+                    .map(SignatureKind::as_slice)
+                    .map(bls_signatures::Signature::from_bytes)
+                    .collect::<Result<Vec<_>, bls_signatures::Error>>()
+                    .unwrap();
+
+                let agg_cetf_sig = if !cetf_sigs.is_empty() {
+                    Some(bls_signatures::aggregate(&cetf_sigs).unwrap())
+                } else {
+                    None
+                };
+                let agg_height_sig = if !height_tags.is_empty() {
+                    Some(bls_signatures::aggregate(&height_tags).unwrap())
+                } else {
+                    None
+                };
+                let agg_hash_sig = if !hash_tags.is_empty() {
+                    Some(bls_signatures::aggregate(&hash_tags).unwrap())
+                } else {
+                    None
+                };
+                tracing::info!(
+                    "Aggregation result: cetf_sig: {:?}, height_sig: {:?}, hash_sig: {:?}",
+                    agg_cetf_sig,
+                    agg_height_sig,
+                    agg_hash_sig
+                );
+                tracing::info!(
+                    "Prepare Proposal! height_tags: {}, hash_tags: {}, cetf_tags: {}",
+                    height_tags.len(),
+                    hash_tags.len(),
+                    cetf_sigs.len(),
+                );
+            }
+            None => {
+                tracing::info!("Prepare proposal with no local last commit");
+            }
+        }
 
         tracing::debug!(
             height = request.height.value(),
