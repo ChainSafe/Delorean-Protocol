@@ -12,9 +12,11 @@ use crate::{
 use anyhow::{bail, Context};
 use async_stm::atomically;
 use async_trait::async_trait;
+use bls_signatures::Serialize;
+use core::task;
 use fendermint_actor_cetf::{BlockHash, BlsSignature};
 use fendermint_tracing::emit;
-use fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR;
+use fendermint_vm_actor_interface::cetf::{self, CETFSYSCALL_ACTOR_ADDR};
 use fendermint_vm_actor_interface::ipc;
 use fendermint_vm_actor_interface::system::SYSTEM_ACTOR_ADDR;
 use fendermint_vm_event::ParentFinalityMissingQuorum;
@@ -649,6 +651,15 @@ fn relayed_bottom_up_ckpt_to_fvm(
     Ok(msg)
 }
 
+pub fn cetf_tag_msg_to_chainmessage(
+    tag_msg: &(u64, bls_signatures::Signature),
+) -> anyhow::Result<ChainMessage> {
+    let tag = tag_msg.0;
+    let sig = tag_msg.1.as_bytes();
+    let sig = BlsSignature(sig.try_into().unwrap());
+    Ok(ChainMessage::Cetf(CetfMessage::CetfTag(tag, sig)))
+}
+
 fn cetf_tag_msg_to_fvm(tag_msg: &(u64, BlsSignature)) -> anyhow::Result<FvmMessage> {
     let params = RawBytes::serialize(&fendermint_actor_cetf::AddSignedTagParams {
         height: tag_msg.0,
@@ -712,4 +723,12 @@ fn cetf_blockheight_tag_msg_to_fvm(tag_msg: &(u64, BlsSignature)) -> anyhow::Res
     };
 
     Ok(msg)
+}
+pub fn cetf_blockheight_tag_msg_to_chainmessage(
+    tag_msg: &(u64, bls_signatures::Signature),
+) -> anyhow::Result<ChainMessage> {
+    let tag = tag_msg.0;
+    let sig = tag_msg.1.as_bytes();
+    let sig = BlsSignature(sig.try_into().unwrap());
+    Ok(ChainMessage::Cetf(CetfMessage::BlockHeightTag(tag, sig)))
 }

@@ -23,7 +23,10 @@ use fendermint_vm_core::Timestamp;
 use fendermint_vm_interpreter::bytes::{
     BytesMessageApplyRes, BytesMessageCheckRes, BytesMessageQuery, BytesMessageQueryRes,
 };
-use fendermint_vm_interpreter::chain::{ChainEnv, ChainMessageApplyRet, IllegalMessage};
+use fendermint_vm_interpreter::chain::{
+    cetf_blockheight_tag_msg_to_chainmessage, cetf_tag_msg_to_chainmessage, ChainEnv,
+    ChainMessageApplyRet, IllegalMessage,
+};
 use fendermint_vm_interpreter::fvm::extend::{SignatureKind, SignedTags, TagKind, Tags};
 use fendermint_vm_interpreter::fvm::state::cetf::get_tag_at_height;
 use fendermint_vm_interpreter::fvm::state::{
@@ -807,6 +810,13 @@ where
         // TODO: I believe this is where we should aggregate the partial signatures from the previous block's
         // vote extensions (well technically in intepreter.prepare?) so that we can inject the aggregated
         // signature into a transaction to publish to the cetf actor so other contracts on chain can access it.
+
+        tracing::debug!(
+            height = request.height.value(),
+            time = request.time.to_string(),
+            "prepare proposal"
+        );
+        let mut cetf_tx = vec![];
         match request.local_last_commit {
             Some(info) => {
                 // TODO: Better error handling
@@ -829,14 +839,14 @@ where
                     .map(bls_signatures::Signature::from_bytes)
                     .collect::<Result<Vec<_>, bls_signatures::Error>>()
                     .unwrap();
-                let height_tags = votes
+                let height_sigs = votes
                     .iter()
                     .filter(|t| matches!(t, SignatureKind::BlockHeight(_)))
                     .map(SignatureKind::as_slice)
                     .map(bls_signatures::Signature::from_bytes)
                     .collect::<Result<Vec<_>, bls_signatures::Error>>()
                     .unwrap();
-                let hash_tags = votes
+                let hash_sigs = votes
                     .iter()
                     .filter(|t| matches!(t, SignatureKind::BlockHash(_)))
                     .map(SignatureKind::as_slice)
@@ -849,13 +859,13 @@ where
                 } else {
                     None
                 };
-                let agg_height_sig = if !height_tags.is_empty() {
-                    Some(bls_signatures::aggregate(&height_tags).unwrap())
+                let agg_height_sig = if !height_sigs.is_empty() {
+                    Some(bls_signatures::aggregate(&height_sigs).unwrap())
                 } else {
                     None
                 };
-                let agg_hash_sig = if !hash_tags.is_empty() {
-                    Some(bls_signatures::aggregate(&hash_tags).unwrap())
+                let agg_hash_sig = if !hash_sigs.is_empty() {
+                    Some(bls_signatures::aggregate(&hash_sigs).unwrap())
                 } else {
                     None
                 };
@@ -865,10 +875,25 @@ where
                     agg_height_sig,
                     agg_hash_sig
                 );
+                if let Some(agg_cetf) = agg_cetf_sig {
+                    cetf_tx.push(cetf_tag_msg_to_chainmessage(&(
+                        request.height.value(),
+                        agg_cetf,
+                    ))?);
+                };
+                if let Some(agg_height) = agg_height_sig {
+                    cetf_tx.push(cetf_blockheight_tag_msg_to_chainmessage(&(
+                        request.height.value(),
+                        agg_height,
+                    ))?);
+                };
+
+                //TODO : Purpusefully skipping the block hash tags
+
                 tracing::info!(
                     "Prepare Proposal! height_tags: {}, hash_tags: {}, cetf_tags: {}",
-                    height_tags.len(),
-                    hash_tags.len(),
+                    height_sigs.len(),
+                    hash_sigs.len(),
                     cetf_sigs.len(),
                 );
             }
@@ -876,13 +901,10 @@ where
                 tracing::info!("Prepare proposal with no local last commit");
             }
         }
-
-        tracing::debug!(
-            height = request.height.value(),
-            time = request.time.to_string(),
-            "prepare proposal"
-        );
-        let txs = request.txs.into_iter().map(|tx| tx.to_vec()).collect();
+        let txs = cetf_tx.iter().map(|msg| to_vec(msg).unwrap());
+        let txs = txs
+            .chain(request.txs.into_iter().map(|tx| tx.to_vec()))
+            .collect();
 
         let txs = self
             .interpreter
@@ -891,6 +913,7 @@ where
             .context("failed to prepare proposal")?;
 
         let txs = txs.into_iter().map(bytes::Bytes::from).collect();
+
         let txs = take_until_max_size(txs, request.max_tx_bytes.try_into().unwrap());
 
         Ok(response::PrepareProposal { txs })
