@@ -495,14 +495,11 @@ where
             tags
         });
 
-        tracing::info!("My turn to ExtendVote! tags: {:?}", tags);
-
         let signatures = self
             .interpreter
             .extend_vote(state, tags)
             .await
             .context("failed to extend vote")?;
-        tracing::info!("My turn to ExtendVote signatures: {:?}", signatures);
 
         // Either is_enabled is false or nothing to sign (TODO: We should force signing)
         if signatures.0.is_empty() {
@@ -530,11 +527,6 @@ where
             tracing::info!("Vote extension empty");
             return Ok(response::VerifyVoteExtension::Accept);
         }
-
-        tracing::info!(
-            "Vote extension detected: {:?}",
-            request.vote_extension.as_ref()
-        );
 
         let db = self.state_store_clone();
         let height = FvmQueryHeight::from(0);

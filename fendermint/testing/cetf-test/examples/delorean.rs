@@ -207,17 +207,18 @@ async fn main() {
             assert!(res.return_data.is_some());
         }
         Commands::QueueTag => {
-
-            let bytes = RawBytes::serialize(88_u64)
+            let to_queue: [u8; 32] = std::array::from_fn(|i| i as u8);
+            let params = RawBytes::serialize(cetf_actor::EnqueueTagParams {
+                tag: to_queue.into(),
+            })
             .expect("failed to serialize params");
-            tracing::info!("CBOR encoded input should look like: {:?}", bytes);
+            tracing::info!("CBOR encoded input should look like: {:?}", params);
 
             let res = TxClient::<TxCommit>::transaction(
                 &mut client,
                 fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
                 cetf_actor::Method::EnqueueTag as u64,
-                RawBytes::serialize(88_64)
-                    .expect("failed to serialize params"),
+                params,
                 TokenAmount::from_whole(0),
                 GAS_PARAMS.clone(),
             )
@@ -229,8 +230,8 @@ async fn main() {
             assert!(res.return_data.is_some());
         }
         Commands::DeployExampleContract => {
-            let spec: serde_json::Value =
-                serde_json::from_str(EXAMPLE_CONTRACT_SPEC_JSON).expect("failed to parse contract spec");
+            let spec: serde_json::Value = serde_json::from_str(EXAMPLE_CONTRACT_SPEC_JSON)
+                .expect("failed to parse contract spec");
 
             let example_contract = hex::decode(
                 &spec["bytecode"]["object"]
@@ -263,7 +264,6 @@ async fn main() {
                 .expect("failed to get CreateReturn data");
             let address = ret.eth_address;
             tracing::info!(address = ?address, "contract deployed");
-
         }
         Commands::CallExampleContract { address } => {
             let contract = example_contract(&address);
