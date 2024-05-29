@@ -4,7 +4,7 @@
 #[cfg(feature = "fil-actor")]
 mod actor;
 mod shared;
-mod state;
+pub mod state;
 
 pub use shared::*;
 pub use state::State;

@@ -28,6 +28,10 @@ fvm_shared = { workspace = true }
 fendermint_crypto = { path = "../../crypto" }
 fendermint_vm_actor_interface = { path = "../../vm/actor_interface" }
 fendermint_vm_message = { path = "../../vm/message" }
+fvm_ipld_blockstore = { workspace = true }
+tokio = { workspace = true }
+fendermint_rpc = { path = "../../rpc" }
+futures.workspace = true
 
 [dev-dependencies]
 clap = { workspace = true }
@@ -35,10 +39,8 @@ ethers = { workspace = true, features = ["abigen"] }
 hex = { workspace = true }
 lazy_static = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-fendermint_rpc = { path = "../../rpc" }
 fendermint_vm_genesis = { path = "../../vm/genesis" }
 fendermint_actor_cetf = { path = "../../actors/cetf" }
 bls-signatures = { version = "0.15.0", default-features = false, features = ["blst"] }

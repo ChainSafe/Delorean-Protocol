@@ -4,7 +4,7 @@
 use crate::{BlockHeight, Tag};
 use crate::{BlsPublicKey, BlsSignature};
 use cid::Cid;
-use fil_actors_runtime::{runtime::Runtime, ActorError, Map2, DEFAULT_HAMT_CONFIG};
+use fil_actors_runtime::{runtime::Runtime, ActorError, Map2};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
 use fvm_shared::address::Address;
@@ -14,7 +14,7 @@ pub type ValidatorBlsPublicKeyMap<BS> = Map2<BS, Address, BlsPublicKey>;
 pub type SignedTagMap<BS> = Map2<BS, BlockHeight, BlsSignature>;
 
 pub type SignedBlockHeightTags<BS> = Map2<BS, BlockHeight, BlsSignature>;
-
+pub use fil_actors_runtime::DEFAULT_HAMT_CONFIG;
 #[derive(Serialize_tuple, Deserialize_tuple, Debug, Clone)]
 pub struct State {
     pub tag_map: Cid,    // HAMT[BlockHeight] => Tag
