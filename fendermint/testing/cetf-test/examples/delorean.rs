@@ -147,7 +147,7 @@ async fn main() {
                             .expect("Failed to convert BLS public key to bytes"),
                     ),
                 })
-                .expect("failed to serialize add validator params"),
+                .expect("failed to serialize params"),
                 TokenAmount::from_whole(0),
                 GAS_PARAMS.clone(),
             )
@@ -159,7 +159,23 @@ async fn main() {
             assert!(res.return_data.is_some());
         }
         Commands::QueueTag => {
-            todo!();
+            let res = TxClient::<TxCommit>::transaction(
+                &mut client,
+                fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
+                cetf_actor::Method::EnqueueTag as u64,
+                RawBytes::serialize(cetf_actor::EnqueueTagParams {
+                    tag: [88_u8; 32],
+                })
+                .expect("failed to serialize params"),
+                TokenAmount::from_whole(0),
+                GAS_PARAMS.clone(),
+            )
+            .await
+            .expect("transfer failed");
+
+            assert!(res.response.check_tx.code.is_ok(), "check is ok");
+            assert!(res.response.tx_result.code.is_ok(), "deliver is ok");
+            assert!(res.return_data.is_some());
         }
     }
 }
