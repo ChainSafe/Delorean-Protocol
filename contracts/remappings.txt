@@ -4,3 +4,5 @@ openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/
 fevmate=lib/fevmate/contracts
 murky/=lib/murky/src
 elliptic-curve-solidity/=lib/elliptic-curve-solidity
+filecoin-solidity-api=lib/filecoin-solidity/contracts/v0.8
+solidity-cborutils=lib/solidity-cborutils
