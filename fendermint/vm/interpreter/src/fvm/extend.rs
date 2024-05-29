@@ -41,14 +41,14 @@ pub enum TagKind {
 impl TagKind {
     pub fn to_vec(&self) -> Vec<u8> {
         match self {
-            TagKind::Cetf(tag) => tag.to_be_bytes().to_vec(),
+            TagKind::Cetf(tag) => tag.to_vec(),
             TagKind::BlockHeight(height) => height.to_be_bytes().to_vec(),
         }
     }
     pub fn sign<C>(&self, ctx: &ValidatorContext<C>) -> anyhow::Result<SignatureKind> {
         match self {
             TagKind::Cetf(tag) => {
-                let sig = ctx.sign_tag(&tag.to_be_bytes());
+                let sig = ctx.sign_tag(tag.as_slice());
                 Ok(SignatureKind::Cetf(BlsSignature(
                     sig.as_bytes().try_into().unwrap(),
                 )))
