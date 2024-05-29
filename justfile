@@ -13,4 +13,4 @@ call_example contract_address:
     set -euxo pipefail
 
     # Call the example contract
-    cast send --rpc-url localhost:8545 --private-key `cat ./fendermint/testing/cetf-test/test-data/keys/emily-eth.sk` {{contract_address}} "enqueueTag(bytes32)" `cast to-bytes32 0x123` 
+    cast send --rpc-url localhost:8545 --private-key `cat ./fendermint/testing/cetf-test/test-data/keys/emily-eth.sk` {{contract_address}} "enqueueTag(bytes32)" `cast to-bytes32 0x123456789` 
