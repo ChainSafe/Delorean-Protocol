@@ -44,9 +44,6 @@ use fendermint_rpc::tx::{CallClient, TxClient, TxCommit};
 type MockProvider = ethers::providers::Provider<ethers::providers::MockProvider>;
 type MockContractCall<T> = ethers::prelude::ContractCall<MockProvider, T>;
 
-const EXAMPLE_CONTRACT_SPEC_JSON: &str =
-    include_str!("../../../../contracts/out/Example.sol/CetfExample.json");
-
 const DEMO_CONTRACT_SPEC_JSON: &str =
     include_str!("../../../../contracts/out/Demo.sol/DeloreanDemo.json");
 
@@ -122,7 +119,6 @@ enum Commands {
         bls_secret_key: PathBuf,
     },
     QueueTag,
-    DeployExampleContract,
     DeployDemoContract,
     CallDemoContract {
         address: String,
@@ -274,42 +270,6 @@ async fn main() {
             assert!(res.response.tx_result.code.is_ok(), "deliver is ok");
             assert!(res.return_data.is_some());
         }
-        Commands::DeployExampleContract => {
-            let spec: serde_json::Value = serde_json::from_str(EXAMPLE_CONTRACT_SPEC_JSON)
-                .expect("failed to parse contract spec");
-
-            let example_contract = hex::decode(
-                &spec["bytecode"]["object"]
-                    .as_str()
-                    .expect("missing bytecode")
-                    .trim_start_matches("0x"),
-            )
-            .expect("invalid hex");
-
-            tracing::info!("Deploying Example Contract");
-
-            let res = TxClient::<TxCommit>::fevm_create(
-                &mut client,
-                Bytes::from(example_contract),
-                Bytes::default(),
-                TokenAmount::default(),
-                GAS_PARAMS.clone(),
-            )
-            .await
-            .expect("error deploying contract");
-
-            tracing::info!(tx_hash = ?res.response.hash, "deployment transaction");
-
-            let ret = res
-                .return_data
-                .ok_or(anyhow!(
-                    "no CreateReturn data; response was {:?}",
-                    res.response
-                ))
-                .expect("failed to get CreateReturn data");
-            let address = ret.eth_address;
-            tracing::info!(address = ?address, "contract deployed");
-        }
         Commands::DeployDemoContract => {
             let spec: serde_json::Value = serde_json::from_str(DEMO_CONTRACT_SPEC_JSON)
                 .expect("failed to parse contract spec");
@@ -349,7 +309,7 @@ async fn main() {
         Commands::CallDemoContract { address } => {
             let contract = delorean_contract(&address);
             let call = contract.release_key();
-            
+
             let result: bool = invoke_or_call_contract(&mut client, &address, call, true)
                 .await
                 .expect("failed to call contract");
@@ -357,57 +317,14 @@ async fn main() {
             tracing::info!(result = ?result, "contract call result");
         }
         Commands::Encrypt { contract_address } => {
-            // get the signing tag from the contract
-            let contract = delorean_contract(&contract_address);
-            let call = contract.signing_tag();
-            let signing_tag: [u8; 32] =
-                invoke_or_call_contract(&mut client, &contract_address, call, true)
-                    .await
-                    .expect("failed to call contract");
+            let signing_tag = retrieve_signing_tag(&mut client, &contract_address)
+                .await
+                .expect("failed to retrieve signing tag");
             tracing::info!(signing_tag = ?signing_tag, "contract call returned");
 
-            let QueryResponse { height, value } = client
-                .actor_state(
-                    &fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
-                    FvmQueryHeight::default(),
-                )
+            let agg_pubkey = get_agg_pubkey(&client, &store)
                 .await
-                .expect("failed to get cetf actor state");
-
-            let (id, act_state) = value.expect("cetf actor state not found");
-            tracing::info!("Get Cetf State (id: {}) at height {}", id, height);
-            let state: CetfActorState = store
-                .get_cbor(&act_state.state)
-                .expect("failed to get cetf actor")
-                .expect("no actor state found");
-
-            // Get all the validators BLS keys
-            let mut bls_keys_bytes = vec![];
-            let validator_map = cetf_actor::state::ValidatorBlsPublicKeyMap::load(
-                store.clone(),
-                &state.validators,
-                DEFAULT_HAMT_CONFIG,
-                "load validator hamt",
-            )
-            .expect("failed to load validator hamt");
-            validator_map
-                .for_each(|_k, v| {
-                    bls_keys_bytes.push(*v);
-                    Ok(())
-                })
-                .expect("failed to iterate validator hamt");
-
-            let pub_keys = bls_keys_bytes
-                .iter()
-                .map(|b| {
-                    bls_signatures::PublicKey::from_bytes(&b.0)
-                        .expect("failed to parse public key from bytes")
-                })
-                .collect::<Vec<_>>();
-
-            let agg_pubkey =
-                bls_signatures::aggregate_keys(&pub_keys).expect("failed to aggregate public keys");
-
+                .expect("failed to get aggregate public key");
             tracing::info!(agg_pubkey = ?hex::encode(&agg_pubkey.as_bytes()), "Computed aggregate BLS pubkey");
 
             // encrypt whatever is on std-in into our armor writer
@@ -424,46 +341,14 @@ async fn main() {
             std::io::stdout().write(&encrypted).unwrap();
         }
         Commands::Decrypt { contract_address } => {
-            // get the signing tag from the contract
-            let contract = delorean_contract(&contract_address);
-            let call = contract.signing_tag();
-            let signing_tag: [u8; 32] =
-                invoke_or_call_contract(&mut client, &contract_address, call, true)
-                    .await
-                    .expect("failed to call contract");
+            let signing_tag = retrieve_signing_tag(&mut client, &contract_address)
+                .await
+                .expect("failed to retrieve signing tag");
             tracing::info!(signing_tag = ?signing_tag, "contract call returned");
 
-            // decrypt whatever is on std-in into our armor writer
-            // Decrypting the message. It requires the round signature, here retrieved from the beacon above.
-            // TODO get the aggregate signature for this tag if it exists
-            // let signature = client.get(round).unwrap().signature();
-            let QueryResponse { height, value } = client
-                .actor_state(
-                    &fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
-                    FvmQueryHeight::default(),
-                )
+            let sig_bytes = get_signature_for_tag(&client, &store, signing_tag)
                 .await
-                .expect("failed to get cetf actor state");
-
-            let (id, act_state) = value.expect("cetf actor state not found");
-            tracing::info!("Get Cetf State (id: {}) at height {}", id, height);
-            let state: CetfActorState = store
-                .get_cbor(&act_state.state)
-                .expect("failed to get cetf actor")
-                .expect("no actor state found");
-
-            let signed_hashed_tag = cetf_actor::state::SignedHashedTagMap::load(
-                store.clone(),
-                &state.signed_hashed_tags,
-                DEFAULT_HAMT_CONFIG,
-                "load signed hashed tags",
-            )
-            .expect("failed to load signed hashed tags");
-
-            let sig_bytes: cetf_actor::BlsSignature = *signed_hashed_tag
-                .get(&signing_tag.into())
-                .expect("failed to get signature from signed hashed tag")
-                .expect("signature not found");
+                .expect("failed to get signature for tag");
 
             let mut decrypted = vec![];
             tlock_age::decrypt(
@@ -554,6 +439,99 @@ fn delorean_contract(contract_eth_addr: &str) -> DeloreanContract<MockProvider> 
     );
     let contract = DeloreanContract::new(contract_h160_addr, std::sync::Arc::new(client));
     contract
+}
+
+/// Retrive the signing tag from a deployed Demo contract given its address
+async fn retrieve_signing_tag(
+    client: &mut (impl TxClient<TxCommit> + CallClient),
+    contract_eth_addr: &str,
+) -> anyhow::Result<[u8; 32]> {
+    let contract = delorean_contract(contract_eth_addr);
+    let call = contract.signing_tag();
+    let signing_tag: [u8; 32] = invoke_or_call_contract(client, contract_eth_addr, call, true)
+        .await
+        .context("failed to call contract")?;
+    Ok(signing_tag)
+}
+
+async fn get_agg_pubkey(
+    client: &impl QueryClient,
+    store: &RemoteBlockstore<FendermintClient>,
+) -> anyhow::Result<bls_signatures::PublicKey> {
+    let QueryResponse { height, value } = client
+        .actor_state(
+            &fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
+            FvmQueryHeight::default(),
+        )
+        .await
+        .expect("failed to get cetf actor state");
+
+    let (id, act_state) = value.expect("cetf actor state not found");
+    tracing::info!("Get Cetf State (id: {}) at height {}", id, height);
+    let state: CetfActorState = store
+        .get_cbor(&act_state.state)
+        .expect("failed to get cetf actor")
+        .expect("no actor state found");
+
+    // Get all the validators BLS keys
+    let mut bls_keys_bytes = vec![];
+    let validator_map = cetf_actor::state::ValidatorBlsPublicKeyMap::load(
+        store.clone(),
+        &state.validators,
+        DEFAULT_HAMT_CONFIG,
+        "load validator hamt",
+    )
+    .expect("failed to load validator hamt");
+    validator_map
+        .for_each(|_k, v| {
+            bls_keys_bytes.push(*v);
+            Ok(())
+        })
+        .expect("failed to iterate validator hamt");
+
+    let pub_keys = bls_keys_bytes
+        .iter()
+        .map(|b| {
+            bls_signatures::PublicKey::from_bytes(&b.0)
+                .expect("failed to parse public key from bytes")
+        })
+        .collect::<Vec<_>>();
+
+    Ok(bls_signatures::aggregate_keys(&pub_keys).expect("failed to aggregate public keys"))
+}
+
+async fn get_signature_for_tag(
+    client: &impl QueryClient,
+    store: &RemoteBlockstore<FendermintClient>,
+    signing_tag: [u8; 32],
+) -> anyhow::Result<cetf_actor::BlsSignature> {
+    let QueryResponse { height, value } = client
+        .actor_state(
+            &fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
+            FvmQueryHeight::default(),
+        )
+        .await
+        .expect("failed to get cetf actor state");
+
+    let (id, act_state) = value.expect("cetf actor state not found");
+    tracing::info!("Get Cetf State (id: {}) at height {}", id, height);
+    let state: CetfActorState = store
+        .get_cbor(&act_state.state)
+        .expect("failed to get cetf actor")
+        .expect("no actor state found");
+
+    let signed_hashed_tag = cetf_actor::state::SignedHashedTagMap::load(
+        store.clone(),
+        &state.signed_hashed_tags,
+        DEFAULT_HAMT_CONFIG,
+        "load signed hashed tags",
+    )
+    .expect("failed to load signed hashed tags");
+
+    Ok(*signed_hashed_tag
+        .get(&signing_tag.into())
+        .expect("failed to get signature from signed hashed tag")
+        .expect("signature not found"))
 }
 
 fn eth_addr_to_eam(eth_addr: &str) -> Address {
