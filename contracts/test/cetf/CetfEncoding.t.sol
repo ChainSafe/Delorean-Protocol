@@ -9,7 +9,7 @@ import "../../src/cetf/CetfAPI.sol";
 contract CetfEncoding is Test {
 
     function test_encodingTagParams() public {        
-        bytes memory encoded = CetfAPI.serializeEnqueueTagParams(88);
+        bytes memory encoded = CetfAPI.serializeEnqueueTagParams(CetfAPI.EnqueueTagParams(0x1111111111111111111111111111111111111111111111111111111111111111));
         console.logBytes(encoded);
     }
 
