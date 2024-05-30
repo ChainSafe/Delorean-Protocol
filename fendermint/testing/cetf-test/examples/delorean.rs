@@ -63,8 +63,8 @@ abigen!(
             "inputs": [
                 {
                     "name": "tag",
-                    "type": "bytes",
-                    "internalType": "bytes"
+                    "type": "bytes32",
+                    "internalType": "bytes32"
                 }
             ],
             "outputs": [

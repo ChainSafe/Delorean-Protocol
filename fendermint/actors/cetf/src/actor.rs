@@ -2,6 +2,8 @@
 // Copyright 2021-2023 BadBoi Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
+use core::hash;
+
 use crate::state::State;
 use crate::AddSignedBlockHeightTagParams;
 use crate::AddSignedTagParams;
@@ -13,6 +15,7 @@ use fil_actors_runtime::actor_error;
 use fil_actors_runtime::builtin::singletons::SYSTEM_ACTOR_ADDR;
 use fil_actors_runtime::runtime::{ActorCode, Runtime};
 use fil_actors_runtime::ActorError;
+use sha3::{Digest, Keccak256};
 
 // Note for myself: trampoline initializes a logger if debug mode is enabled.
 fil_actors_runtime::wasm_trampoline!(Actor);
@@ -44,19 +47,39 @@ impl Actor {
     pub fn enqueue_tag(rt: &impl Runtime, tag: EnqueueTagParams) -> Result<u64, ActorError> {
         rt.validate_immediate_caller_accept_any()?;
 
+        let calling_contract = rt
+            .lookup_delegated_address(rt.message().caller().id().unwrap())
+            .ok_or(ActorError::assertion_failed(
+                "No delegated address for caller".to_string(),
+            ))?;
+        let bytes = calling_contract.payload_bytes();
+        let calling_eth_address = &bytes[..bytes.len() - 4];
+
+        // hash together the calling address and the tag to create a unique identifier for the tag
+        let mut hashdata = Vec::new();
+        hashdata.extend_from_slice(&calling_eth_address);
+        hashdata.extend_from_slice(&tag.tag.0);
+        let signing_tag = Keccak256::digest(hashdata);
+
+        log::info!(
+            "cetf actor enqueue_tag called by {} with tag {:?}. Resulting signing tag is {:?}",
+            hex::encode(calling_eth_address),
+            tag,
+            signing_tag,
+        );
+
         let scheduled_epoch = rt.transaction(|st: &mut State, rt| {
             // +2 because the Validators sign the tag in the next epoch
             // then it gets included into the block one more epoch after that
             // Then in 1 MORE epoch, it should be available to be queried in VM
             let scheduled_epoch = rt.curr_epoch() + 2;
-
             if st.enabled {
                 // NOTE: use of epoch is intentional here. In fendermint the epoch is the block height
                 st.add_tag_at_height(rt, &(scheduled_epoch as u64), &tag.tag)?;
                 log::info!(
                     "Cetf actor enqueue_tag called by {} with tag {:?} for height: {}",
                     rt.message().caller(),
-                    tag,
+                    signing_tag,
                     scheduled_epoch
                 );
             } else {

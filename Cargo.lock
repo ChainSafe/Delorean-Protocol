@@ -2712,11 +2712,13 @@ dependencies = [
  "fvm_ipld_encoding",
  "fvm_sdk",
  "fvm_shared",
+ "hex",
  "log",
  "num-derive 0.3.3",
  "num-traits",
  "serde",
  "serde_tuple",
+ "sha3",
 ]
 
 [[package]]
