@@ -52,8 +52,8 @@ impl Actor {
             .ok_or(ActorError::assertion_failed(
                 "No delegated address for caller".to_string(),
             ))?;
-        let bytes = calling_contract.payload_bytes();
-        let calling_eth_address = &bytes[..bytes.len() - 4];
+        let calling_eth_address = &calling_contract.payload_bytes()[1..];
+        assert!(calling_eth_address.len() == 20, "Invalid eth address length");
 
         // hash together the calling address and the tag to create a unique identifier for the tag
         let mut hashdata = Vec::new();
