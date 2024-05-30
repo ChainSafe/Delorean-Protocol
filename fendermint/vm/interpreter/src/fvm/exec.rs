@@ -187,15 +187,11 @@ where
                     let (apply_ret, _) = state.execute_implicit(msg)?;
 
                     if let Some(err) = apply_ret.failure_info {
-                        anyhow::bail!("failed to apply chainmetadata message: {}", err);
+                        anyhow::bail!("Failed to apply cetf message: {}", err);
                     } else {
                         tracing::info!("CETF actor enable successful");
                     }
-                } else {
-                    tracing::info!("Not all keys registered! Not enabling CETF actor");
                 }
-            } else {
-                tracing::debug!("CETF actor is enabled");
             }
         }
 
