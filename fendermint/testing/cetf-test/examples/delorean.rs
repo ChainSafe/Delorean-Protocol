@@ -336,6 +336,7 @@ async fn main() -> anyhow::Result<()> {
             tracing::info!(signing_tag = ?signing_tag, "contract call returned");
 
             let sig_bytes = get_signature_for_tag(&client, &store, signing_tag).await?;
+            tracing::info!(sig_bytes = ?sig_bytes, "Got signature for tag. len: {}", sig_bytes.0.len());
 
             let mut decrypted = vec![];
             tlock_age::decrypt(
