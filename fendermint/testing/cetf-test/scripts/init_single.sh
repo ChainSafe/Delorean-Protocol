@@ -58,15 +58,15 @@ fendermint \
   genesis --genesis-file $GENESIS_FILE \
   add-validator --public-key $KEYS_DIR/$VALIDATOR_NAME.pk --power 1
 
-fendermint \
-  genesis --genesis-file $GENESIS_FILE \
-  add-validator --public-key $KEYS_DIR/$VALIDATOR_NAME_1.pk --power 1
-fendermint \
-  genesis --genesis-file $GENESIS_FILE \
-  add-validator --public-key $KEYS_DIR/$VALIDATOR_NAME_2.pk --power 1
-fendermint \
-  genesis --genesis-file $GENESIS_FILE \
-  add-validator --public-key $KEYS_DIR/$VALIDATOR_NAME_3.pk --power 1
+# fendermint \
+#   genesis --genesis-file $GENESIS_FILE \
+#   add-validator --public-key $KEYS_DIR/$VALIDATOR_NAME_1.pk --power 1
+# fendermint \
+#   genesis --genesis-file $GENESIS_FILE \
+#   add-validator --public-key $KEYS_DIR/$VALIDATOR_NAME_2.pk --power 1
+# fendermint \
+#   genesis --genesis-file $GENESIS_FILE \
+#   add-validator --public-key $KEYS_DIR/$VALIDATOR_NAME_3.pk --power 1
 
 # Convert FM genesis to CMT
 fendermint \

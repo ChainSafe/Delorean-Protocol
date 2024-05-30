@@ -47,6 +47,7 @@ impl Actor {
         let scheduled_epoch = rt.transaction(|st: &mut State, rt| {
             // +2 because the Validators sign the tag in the next epoch
             // then it gets included into the block one more epoch after that
+            // Then in 1 MORE epoch, it should be available to be queried in VM
             let scheduled_epoch = rt.curr_epoch() + 2;
 
             if st.enabled {

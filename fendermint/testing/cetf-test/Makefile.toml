@@ -11,6 +11,28 @@ env_files = [
   { path = "../scripts/ci.env", profile = "ci" },
 ]
 
+[tasks.fendermint-init-single-cetf]
+extend = "fendermint-run"
+env = { "ENTRY" = "/data/scripts/init_single.sh", "FLAGS" = "-a STDOUT -a STDERR --rm" }
+
+[tasks.setup-single-cetf]
+dependencies = [
+  "create-log-volume",
+  "test-data-dir",
+  "test-data-env",
+  "test-node-dir",
+  "docker-network-create",
+  "cometbft-init",
+  "fendermint-init-single-cetf",
+  "fendermint-start-cetf",
+  "cometbft-start",
+  "ethapi-start",
+  "cometbft-wait",
+  "fendermint-logs",
+  "cometbft-logs",
+  "ethapi-logs",
+]
+
 [tasks.setup-cetf]
 run_task = { name = [
   "setup-seed",
@@ -80,6 +102,7 @@ run_task = { name = [
 # Shut down all non-default nodes.
 [tasks.cetf-teardown]
 run_task = { name = [
+  "teardown",
   "node-1-teardown",
   "node-2-teardown",
   "node-3-teardown",
