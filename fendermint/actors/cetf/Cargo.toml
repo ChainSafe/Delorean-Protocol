@@ -23,8 +23,7 @@ num-traits = { workspace = true }
 frc42_dispatch = { workspace = true }
 log = { workspace = true }
 hex = { workspace = true }
-ethers = { workspace = true}
-getrandom = { version = "0.2", features = ["js"] } # needed so ethers can build for Wasm
+sha3 = "0.10.8"
 
 [features]
 default = []
