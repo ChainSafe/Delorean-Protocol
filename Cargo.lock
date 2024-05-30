@@ -9759,7 +9759,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "tlock"
 version = "0.0.5"
-source = "git+https://github.com/BadBoiLabs/tlock-rs?rev=e79ffc52d80f548a9f19a633965f903d6b1b127a#e79ffc52d80f548a9f19a633965f903d6b1b127a"
+source = "git+https://github.com/BadBoiLabs/tlock-rs?rev=3c375ccfbc0eab77b0481029f0d09021f876377a#3c375ccfbc0eab77b0481029f0d09021f876377a"
 dependencies = [
  "anyhow",
  "ark-bls12-381",
@@ -9779,7 +9779,7 @@ dependencies = [
 [[package]]
 name = "tlock_age"
 version = "0.0.5"
-source = "git+https://github.com/BadBoiLabs/tlock-rs?rev=e79ffc52d80f548a9f19a633965f903d6b1b127a#e79ffc52d80f548a9f19a633965f903d6b1b127a"
+source = "git+https://github.com/BadBoiLabs/tlock-rs?rev=3c375ccfbc0eab77b0481029f0d09021f876377a#3c375ccfbc0eab77b0481029f0d09021f876377a"
 dependencies = [
  "age",
  "age-core",

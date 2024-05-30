@@ -32,7 +32,7 @@ fvm_ipld_blockstore = { workspace = true }
 tokio = { workspace = true }
 fendermint_rpc = { path = "../../rpc" }
 futures.workspace = true
-tlock_age = { git = "https://github.com/BadBoiLabs/tlock-rs", rev = "e79ffc52d80f548a9f19a633965f903d6b1b127a", features = ["armor"] }
+tlock_age = { git = "https://github.com/BadBoiLabs/tlock-rs", rev = "3c375ccfbc0eab77b0481029f0d09021f876377a", features = ["armor"] }
 k256 = { workspace = true, features = ["sha2"] }
 # bls-signatures = { version = "0.15.0", default-features = false, features = ["blst"] }
 
