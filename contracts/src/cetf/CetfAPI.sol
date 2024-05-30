@@ -7,6 +7,11 @@ import "filecoin-solidity-api/utils/Actor.sol";
 import "solidity-cborutils/contracts/CBOR.sol";
 
 
+struct EnqueueTagParams {
+    // Should be 32 bytes
+    bytes tag;
+}
+
 /// @title This library is a proxy to the singleton CETF actor (address: f05)
 /// @author BadBoi Labs
 library CetfAPI {
@@ -16,10 +21,22 @@ library CetfAPI {
     uint256 constant EchoMethodNum = 1638589290; // obtained from actors/cetf/actor.rs  actor_dispatch! macro
     uint256 constant EnqueueTagMethodNum = 1820684761; // obtained from actors/cetf/actor.rs  actor_dispatch! macro
 
+    // Change these if struct changes
+    uint8 constant EnqueueTagParamsNumFields = 1;
 
-    function serializeEnqueueTagParams(uint64 tag) internal pure returns (bytes memory) {
-        CBOR.CBORBuffer memory buf = CBOR.create(0);
-        buf.writeUInt64(tag);
+    function serializeEnqueueTagParams(EnqueueTagParams memory tag) internal pure returns (bytes memory) {
+        uint256 capacity = 0;
+        // Number of fields in the struct 
+        capacity += Misc.getPrefixSize(EnqueueTagParamsNumFields);
+        // Size of the tag (should just be 32 bytes unless we change that)
+        capacity += Misc.getPrefixSize(tag.tag.length);
+        capacity += tag.tag.length;
+
+        CBOR.CBORBuffer memory buf = CBOR.create(capacity);
+
+        buf.startFixedArray(EnqueueTagParamsNumFields);
+        buf.writeBytes(tag.tag);
+
         return buf.data();
     }
 
@@ -37,7 +54,8 @@ library CetfAPI {
         return (exitCode);
     }
 
-    function enqueueTag(uint64 tag) internal returns (int256) {
+    function enqueueTag(bytes memory tag_bytes) internal returns (int256) {
+        EnqueueTagParams memory tag = EnqueueTagParams(tag_bytes);
         bytes memory rawParams = serializeEnqueueTagParams(tag);
 
         (int256 exitCode,) =

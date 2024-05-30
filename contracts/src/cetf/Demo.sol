@@ -11,7 +11,7 @@ contract DeloreanDemo {
 
     uint256 constant FUNDING_GOAL = 88 ether;
     uint256 constant BLOCK_HEIGHT_REQUIRED = 10;
-    uint64 constant TAG = 0; // this is to allow a contract to manage multiple keys
+    bytes  TAG; // this is to allow a contract to manage multiple keys
 
     error InsufficientFunds();
     error BlockHeightNotReached();

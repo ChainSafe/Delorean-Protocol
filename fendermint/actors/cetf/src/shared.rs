@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use fil_actors_runtime::MapKey;
 // Copyright 2022-2024 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
@@ -10,7 +12,43 @@ use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
 pub type BlockHeight = u64;
-pub type Tag = u64;
+
+pub const CETF_ACTOR_NAME: &str = "cetf";
+
+/// Tag which will be signed by Validators
+#[derive(Deserialize, Serialize, Clone, Copy, Eq, PartialEq, Debug)]
+#[serde(transparent)]
+pub struct Tag(#[serde(with = "strict_bytes")] pub [u8; 32]);
+impl Default for Tag {
+    fn default() -> Self {
+        Tag([0; 32])
+    }
+}
+impl From<[u8; 32]> for Tag {
+    fn from(bytes: [u8; 32]) -> Self {
+        Tag(bytes)
+    }
+}
+impl From<&[u8; 32]> for Tag {
+    fn from(bytes: &[u8; 32]) -> Self {
+        Tag(*bytes)
+    }
+}
+
+impl Deref for Tag {
+    type Target = [u8; 32];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Tag {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /// A BLS Public Key used for signing tags.
 #[derive(Deserialize, Serialize, Clone, Copy, Eq, PartialEq, Debug)]
 #[serde(transparent)]
@@ -51,11 +89,9 @@ impl From<&[u8; 96]> for BlsSignature {
     }
 }
 
-pub const CETF_ACTOR_NAME: &str = "cetf";
-
 #[derive(Default, Debug, Serialize_tuple, Deserialize_tuple)]
 pub struct EnqueueTagParams {
-    pub tag: [u8; 32],
+    pub tag: Tag,
 }
 
 #[derive(Default, Debug, Serialize_tuple, Deserialize_tuple)]
