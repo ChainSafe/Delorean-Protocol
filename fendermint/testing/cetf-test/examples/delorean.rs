@@ -31,9 +31,9 @@ use fvm_ipld_encoding::{CborStore, RawBytes};
 use fvm_shared::address::Address;
 use fvm_shared::chainid::ChainID;
 use lazy_static::lazy_static;
+use std::ops::Add;
 use tendermint_rpc::Url;
 use tracing::Level;
-use std::ops::Add;
 
 use fvm_shared::econ::TokenAmount;
 
@@ -60,48 +60,19 @@ lazy_static! {
 }
 
 abigen!(
-    CetfExample,
-    r#"[
-        {
-            "type": "function",
-            "name": "releaseKey",
-            "inputs": [
-                {
-                    "name": "tag",
-                    "type": "bytes32",
-                    "internalType": "bytes32"
-                }
-            ],
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "int256",
-                    "internalType": "int256"
-                }
-            ],
-            "stateMutability": "nonpayable"
-        },
-        {
-            "type": "error",
-            "name": "ActorNotFound",
-            "inputs": []
-        },
-        {
-            "type": "error",
-            "name": "FailToCallActor",
-            "inputs": []
-        }
-    ]"#
-);
-
-abigen!(
     DeloreanContract,
     r#"[
         {
             "type": "function",
             "name": "releaseKey",
             "inputs": [],
-            "outputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bool",
+                    "internalType": "bool"
+                }
+            ],
             "stateMutability": "nonpayable"
         },
         {
@@ -153,11 +124,14 @@ enum Commands {
     QueueTag,
     DeployExampleContract,
     DeployDemoContract,
-    CallExampleContract {
+    CallDemoContract {
         address: String,
     },
     RegisteredKeys,
     Encrypt {
+        contract_address: String,
+    },
+    Decrypt {
         contract_address: String,
     },
 }
@@ -372,12 +346,11 @@ async fn main() {
             let address = ret.eth_address;
             tracing::info!(address = ?address, "contract deployed");
         }
-        Commands::CallExampleContract { address } => {
-            let contract = example_contract(&address);
-            let tag: [u8; 32] = std::array::from_fn(|i| i as u8);
-            let call = contract.release_key(tag.into());
-
-            let result: I256 = invoke_or_call_contract(&mut client, &address, call, true)
+        Commands::CallDemoContract { address } => {
+            let contract = delorean_contract(&address);
+            let call = contract.release_key();
+            
+            let result: bool = invoke_or_call_contract(&mut client, &address, call, true)
                 .await
                 .expect("failed to call contract");
 
@@ -408,8 +381,6 @@ async fn main() {
                 .expect("failed to get cetf actor")
                 .expect("no actor state found");
 
-            let height: u64 = height.into();
-            let height = height - 1u64;
             // Get all the validators BLS keys
             let mut bls_keys_bytes = vec![];
             let validator_map = cetf_actor::state::ValidatorBlsPublicKeyMap::load(
@@ -434,8 +405,8 @@ async fn main() {
                 })
                 .collect::<Vec<_>>();
 
-            let agg_pubkey = bls_signatures::aggregate_keys(&pub_keys)
-                .expect("failed to aggregate public keys");
+            let agg_pubkey =
+                bls_signatures::aggregate_keys(&pub_keys).expect("failed to aggregate public keys");
 
             tracing::info!(agg_pubkey = ?hex::encode(&agg_pubkey.as_bytes()), "Computed aggregate BLS pubkey");
 
@@ -451,6 +422,58 @@ async fn main() {
             .unwrap();
             let encrypted = armored.finish().unwrap();
             std::io::stdout().write(&encrypted).unwrap();
+        }
+        Commands::Decrypt { contract_address } => {
+            // get the signing tag from the contract
+            let contract = delorean_contract(&contract_address);
+            let call = contract.signing_tag();
+            let signing_tag: [u8; 32] =
+                invoke_or_call_contract(&mut client, &contract_address, call, true)
+                    .await
+                    .expect("failed to call contract");
+            tracing::info!(signing_tag = ?signing_tag, "contract call returned");
+
+            // decrypt whatever is on std-in into our armor writer
+            // Decrypting the message. It requires the round signature, here retrieved from the beacon above.
+            // TODO get the aggregate signature for this tag if it exists
+            // let signature = client.get(round).unwrap().signature();
+            let QueryResponse { height, value } = client
+                .actor_state(
+                    &fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
+                    FvmQueryHeight::default(),
+                )
+                .await
+                .expect("failed to get cetf actor state");
+
+            let (id, act_state) = value.expect("cetf actor state not found");
+            tracing::info!("Get Cetf State (id: {}) at height {}", id, height);
+            let state: CetfActorState = store
+                .get_cbor(&act_state.state)
+                .expect("failed to get cetf actor")
+                .expect("no actor state found");
+
+            let signed_hashed_tag = cetf_actor::state::SignedHashedTagMap::load(
+                store.clone(),
+                &state.signed_hashed_tags,
+                DEFAULT_HAMT_CONFIG,
+                "load signed hashed tags",
+            )
+            .expect("failed to load signed hashed tags");
+
+            let sig_bytes: cetf_actor::BlsSignature = *signed_hashed_tag
+                .get(&signing_tag.into())
+                .expect("failed to get signature from signed hashed tag")
+                .expect("signature not found");
+
+            let mut decrypted = vec![];
+            tlock_age::decrypt(
+                &mut decrypted,
+                std::io::stdin().lock(),
+                &[0x0; 32],
+                &sig_bytes.0,
+            )
+            .unwrap();
+            std::io::stdout().write(&decrypted).unwrap();
         }
     }
 }
@@ -518,19 +541,6 @@ async fn sequence(client: &impl QueryClient, addr: &Address) -> anyhow::Result<u
         Some((_id, state)) => Ok(state.sequence),
         None => Err(anyhow!("cannot find actor {addr}")),
     }
-}
-
-/// Create an instance of the statically typed contract client.
-fn example_contract(contract_eth_addr: &str) -> CetfExample<MockProvider> {
-    // A dummy client that we don't intend to use to call the contract or send transactions.
-    let (client, _mock) = ethers::providers::Provider::mocked();
-    let contract_h160_addr = ethers::core::types::Address::from_slice(
-        hex::decode(contract_eth_addr.trim_start_matches("0x"))
-            .unwrap()
-            .as_slice(),
-    );
-    let contract = CetfExample::new(contract_h160_addr, std::sync::Arc::new(client));
-    contract
 }
 
 /// Create an instance of the statically typed contract client.
