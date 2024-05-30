@@ -11,6 +11,7 @@
 //! cargo run --example delorean -- --secret-key test-data/keys/volvo.sk queue-tag
 //! ```
 
+use std::any;
 use std::io::Write;
 use std::path::PathBuf;
 
@@ -144,7 +145,7 @@ impl Options {
 
 /// See the module docs for how to run.
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     let opts: Options = Options::parse();
 
     tracing_subscriber::fmt()
@@ -271,16 +272,13 @@ async fn main() {
             assert!(res.return_data.is_some());
         }
         Commands::DeployDemoContract => {
-            let spec: serde_json::Value = serde_json::from_str(DEMO_CONTRACT_SPEC_JSON)
-                .expect("failed to parse contract spec");
-
+            let spec: serde_json::Value = serde_json::from_str(DEMO_CONTRACT_SPEC_JSON)?;
             let example_contract = hex::decode(
                 &spec["bytecode"]["object"]
                     .as_str()
                     .expect("missing bytecode")
                     .trim_start_matches("0x"),
-            )
-            .expect("invalid hex");
+            )?;
 
             tracing::info!("Deploying Example Contract");
 
@@ -310,21 +308,15 @@ async fn main() {
             let contract = delorean_contract(&address);
             let call = contract.release_key();
 
-            let result: bool = invoke_or_call_contract(&mut client, &address, call, true)
-                .await
-                .expect("failed to call contract");
+            let result: bool = invoke_or_call_contract(&mut client, &address, call, true).await?;
 
             tracing::info!(result = ?result, "contract call result");
         }
         Commands::Encrypt { contract_address } => {
-            let signing_tag = retrieve_signing_tag(&mut client, &contract_address)
-                .await
-                .expect("failed to retrieve signing tag");
+            let signing_tag = retrieve_signing_tag(&mut client, &contract_address).await?;
             tracing::info!(signing_tag = ?signing_tag, "contract call returned");
 
-            let agg_pubkey = get_agg_pubkey(&client, &store)
-                .await
-                .expect("failed to get aggregate public key");
+            let agg_pubkey = get_agg_pubkey(&client, &store).await?;
             tracing::info!(agg_pubkey = ?hex::encode(&agg_pubkey.as_bytes()), "Computed aggregate BLS pubkey");
 
             // encrypt whatever is on std-in into our armor writer
@@ -335,20 +327,15 @@ async fn main() {
                 &[0x0; 32], // I think this can be anything..
                 &agg_pubkey.as_bytes(),
                 signing_tag,
-            )
-            .unwrap();
+            )?;
             let encrypted = armored.finish().unwrap();
             std::io::stdout().write(&encrypted).unwrap();
         }
         Commands::Decrypt { contract_address } => {
-            let signing_tag = retrieve_signing_tag(&mut client, &contract_address)
-                .await
-                .expect("failed to retrieve signing tag");
+            let signing_tag = retrieve_signing_tag(&mut client, &contract_address).await?;
             tracing::info!(signing_tag = ?signing_tag, "contract call returned");
 
-            let sig_bytes = get_signature_for_tag(&client, &store, signing_tag)
-                .await
-                .expect("failed to get signature for tag");
+            let sig_bytes = get_signature_for_tag(&client, &store, signing_tag).await?;
 
             let mut decrypted = vec![];
             tlock_age::decrypt(
@@ -356,11 +343,11 @@ async fn main() {
                 std::io::stdin().lock(),
                 &[0x0; 32],
                 &sig_bytes.0,
-            )
-            .unwrap();
+            )?;
             std::io::stdout().write(&decrypted).unwrap();
         }
     }
+    Ok(())
 }
 
 /// Invoke FEVM through Tendermint with the calldata encoded by ethers, decoding the result into the expected type.
