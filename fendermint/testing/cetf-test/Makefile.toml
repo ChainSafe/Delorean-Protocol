@@ -42,7 +42,7 @@ dependencies = [
   "cometbft-start",
   "ethapi-start",
   "cometbft-wait",
-  "promtail-start",
+  # "promtail-start",
   "fendermint-logs",
   "cometbft-logs",
   "ethapi-logs",
@@ -167,6 +167,17 @@ if [ "$EARLIEST" = "$LATEST" ]; then
   echo "ERROR: The chain is not syncing!"
   exit 1
 fi
+"""
+
+[tasks.register-bls-keys-seed]
+script = """
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/cetf-test
+
+cargo run --example delorean -- \
+  --secret-key test-data/keys/veronica.sk \
+  ${VERBOSITY} \
+  register-bls \
+  --bls-secret-key test-data/keys/veronica.bls.sk
 """
 
 [tasks.register-bls-keys]

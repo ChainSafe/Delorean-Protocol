@@ -41,12 +41,15 @@ impl Actor {
 
     /// Add a new tag to the state to be signed by the validators
     /// Callable by anyone and designed to be called from Solidity contracts
-    pub fn enqueue_tag(rt: &impl Runtime, tag: EnqueueTagParams) -> Result<(), ActorError> {
+    pub fn enqueue_tag(rt: &impl Runtime, tag: EnqueueTagParams) -> Result<u64, ActorError> {
         rt.validate_immediate_caller_accept_any()?;
 
-        rt.transaction(|st: &mut State, rt| {
+        let scheduled_epoch = rt.transaction(|st: &mut State, rt| {
+            // +2 because the Validators sign the tag in the next epoch
+            // then it gets included into the block one more epoch after that
+            let scheduled_epoch = rt.curr_epoch() + 2;
+
             if st.enabled {
-                let scheduled_epoch = rt.curr_epoch() + 1;
                 // NOTE: use of epoch is intentional here. In fendermint the epoch is the block height
                 st.add_tag_at_height(rt, &(scheduled_epoch as u64), &tag.tag)?;
                 log::info!(
@@ -58,10 +61,10 @@ impl Actor {
             } else {
                 log::info!("CETF actor is disabled. Not all validators have added their keys. No tag was enqueued.");
             }
-            Ok(())
+            Ok(scheduled_epoch)
         })?;
 
-        Ok(())
+        Ok(scheduled_epoch as u64)
     }
 
     /// Clear a tag as presumably it has now been signed by the validators at it corresponding height

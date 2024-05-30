@@ -480,10 +480,10 @@ where
             let mut tags = vec![];
 
             // We haven't started execution yet so TM height is one ahead of FVM height.
-            let fvm_tags_height = block_height + 1;
+            let fvm_tags_height = block_height + 2;
 
-            let cetf_tag = get_tag_at_height(db, &state_root, fvm_tags_height)
-                .context(format!("failed to get tag at height {}", fvm_tags_height))?;
+            let cetf_tag = get_tag_at_height(db, &state_root, block_height + 2)
+                .context(format!("failed to get tag at height {}", block_height + 2))?;
 
             if let Some(tag) = cetf_tag {
                 tags.push(TagKind::Cetf(tag));
@@ -498,7 +498,12 @@ where
             .extend_vote(state, tags)
             .await
             .context("failed to extend vote")?;
-
+        tracing::info!(
+            "Extend Vote: FVM {}, TM {} Signatures: {:?}",
+            block_height,
+            request.height.value(),
+            signatures.0.iter().map(|s| s.to_vec()).collect::<Vec<_>>()
+        );
         // Either is_enabled is false or nothing to sign (TODO: We should force signing)
         if signatures.0.is_empty() {
             Ok(response::ExtendVote {
@@ -546,7 +551,7 @@ where
 
         let sigs: SignedTags =
             from_slice(&request.vote_extension).context("failed to deserialize signatures")?;
-        let fvm_tags_height = block_height + 1;
+        let fvm_tags_height = block_height + 2;
 
         let tags = Tags(
             sigs.0
@@ -554,7 +559,7 @@ where
                 .map(|sig_kind| match sig_kind {
                     SignatureKind::Cetf(_) => {
                         let db = db.clone();
-                        let tag = get_tag_at_height(db, &state_root, fvm_tags_height)
+                        let tag = get_tag_at_height(db, &state_root, block_height + 2)
                             .context("failed to get tag at height")?
                             .ok_or_else(|| anyhow!("failed to get tag at height: None"))?;
 
@@ -811,6 +816,9 @@ where
                     })
                     .flatten()
                     .collect::<Vec<_>>();
+                for v in votes.iter() {
+                    tracing::info!("Signatures {} : {:?}", request.height, v.as_slice());
+                }
                 let cetf_sigs = votes
                     .iter()
                     .filter(|t| matches!(t, SignatureKind::Cetf(_)))
@@ -836,7 +844,14 @@ where
                 } else {
                     None
                 };
-
+                tracing::info!(
+                    "Height Aggregated Sig: {:?}",
+                    agg_height_sig.as_ref().map(|s| s.as_bytes())
+                );
+                tracing::info!(
+                    "Cetf Aggregated Sig: {:?}",
+                    agg_cetf_sig.as_ref().map(|s| s.as_bytes())
+                );
                 tracing::info!(
                     "Aggregation result (TM Height: {})): cetf_sig: {:?}, height_sig: {:?}",
                     request.height.value(),
@@ -845,13 +860,13 @@ where
                 );
                 if let Some(agg_cetf) = agg_cetf_sig {
                     cetf_tx.push(cetf_tag_msg_to_chainmessage(&(
-                        request.height.value() - 1,
+                        request.height.value(),
                         agg_cetf,
                     ))?);
                 };
                 if let Some(agg_height) = agg_height_sig {
                     cetf_tx.push(cetf_blockheight_tag_msg_to_chainmessage(&(
-                        request.height.value() - 1,
+                        request.height.value(),
                         agg_height,
                     ))?);
                 };
