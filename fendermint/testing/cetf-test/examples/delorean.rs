@@ -11,6 +11,7 @@
 //! cargo run --example delorean -- --secret-key test-data/keys/volvo.sk queue-tag
 //! ```
 
+use std::io::Write;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context};
@@ -44,6 +45,9 @@ type MockContractCall<T> = ethers::prelude::ContractCall<MockProvider, T>;
 
 const EXAMPLE_CONTRACT_SPEC_JSON: &str =
     include_str!("../../../../contracts/out/Example.sol/CetfExample.json");
+
+const DEMO_CONTRACT_SPEC_JSON: &str =
+    include_str!("../../../../contracts/out/Demo.sol/DeloreanDemo.json");
 
 lazy_static! {
     /// Default gas params based on the testkit.
@@ -89,6 +93,32 @@ abigen!(
     ]"#
 );
 
+abigen!(
+    DeloreanContract,
+    r#"[
+        {
+            "type": "function",
+            "name": "releaseKey",
+            "inputs": [],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "signingTag",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "stateMutability": "nonpayable"
+        }
+    ]"#
+);
+
 #[derive(Parser, Debug)]
 pub struct Options {
     /// The URL of the Tendermint node's RPC endpoint.
@@ -121,10 +151,14 @@ enum Commands {
     },
     QueueTag,
     DeployExampleContract,
+    DeployDemoContract,
     CallExampleContract {
         address: String,
     },
     RegisteredKeys,
+    Encrypt {
+        contract_address: String,
+    }
 }
 
 impl Options {
@@ -300,6 +334,42 @@ async fn main() {
                 .expect("failed to get CreateReturn data");
             let address = ret.eth_address;
             tracing::info!(address = ?address, "contract deployed");
+        },
+        Commands::DeployDemoContract => {
+            let spec: serde_json::Value = serde_json::from_str(DEMO_CONTRACT_SPEC_JSON)
+                .expect("failed to parse contract spec");
+
+            let example_contract = hex::decode(
+                &spec["bytecode"]["object"]
+                    .as_str()
+                    .expect("missing bytecode")
+                    .trim_start_matches("0x"),
+            )
+            .expect("invalid hex");
+
+            tracing::info!("Deploying Example Contract");
+
+            let res = TxClient::<TxCommit>::fevm_create(
+                &mut client,
+                Bytes::from(example_contract),
+                Bytes::default(),
+                TokenAmount::default(),
+                GAS_PARAMS.clone(),
+            )
+            .await
+            .expect("error deploying contract");
+
+            tracing::info!(tx_hash = ?res.response.hash, "deployment transaction");
+
+            let ret = res
+                .return_data
+                .ok_or(anyhow!(
+                    "no CreateReturn data; response was {:?}",
+                    res.response
+                ))
+                .expect("failed to get CreateReturn data");
+            let address = ret.eth_address;
+            tracing::info!(address = ?address, "contract deployed");
         }
         Commands::CallExampleContract { address } => {
             let contract = example_contract(&address);
@@ -311,6 +381,31 @@ async fn main() {
                 .expect("failed to call contract");
 
             tracing::info!(result = ?result, "contract call result");
+        }
+        Commands::Encrypt { contract_address } => {
+            // get the signing tag from the contract
+            let contract = delorean_contract(&contract_address);
+            let call = contract.signing_tag();
+            let signing_tag: [u8; 32] = invoke_or_call_contract(&mut client, &contract_address, call, true)
+                .await
+                .expect("failed to call contract");
+            tracing::info!(result = ?signing_tag, "contract call result");
+
+            // get the aggregate pubkey from the network
+            let pubkey_bytes = Vec::new();
+
+            // encrypt whatever is on std-in into our armor writer
+            let mut armored = tlock_age::armor::ArmoredWriter::wrap_output(vec![]).unwrap();
+            tlock_age::encrypt(
+                &mut armored,
+                std::io::stdin().lock(),
+                &hex::decode("dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493").unwrap(), // I think this can be anything..
+                &pubkey_bytes,
+                signing_tag,
+            )
+            .unwrap();
+            let encrypted = armored.finish().unwrap();
+            std::io::stdout().write(&encrypted).unwrap();
         }
     }
 }
@@ -390,6 +485,19 @@ fn example_contract(contract_eth_addr: &str) -> CetfExample<MockProvider> {
             .as_slice(),
     );
     let contract = CetfExample::new(contract_h160_addr, std::sync::Arc::new(client));
+    contract
+}
+
+/// Create an instance of the statically typed contract client.
+fn delorean_contract(contract_eth_addr: &str) -> DeloreanContract<MockProvider> {
+    // A dummy client that we don't intend to use to call the contract or send transactions.
+    let (client, _mock) = ethers::providers::Provider::mocked();
+    let contract_h160_addr = ethers::core::types::Address::from_slice(
+        hex::decode(contract_eth_addr.trim_start_matches("0x"))
+            .unwrap()
+            .as_slice(),
+    );
+    let contract = DeloreanContract::new(contract_h160_addr, std::sync::Arc::new(client));
     contract
 }
 
