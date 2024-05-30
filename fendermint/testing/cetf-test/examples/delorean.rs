@@ -33,6 +33,7 @@ use fvm_shared::chainid::ChainID;
 use lazy_static::lazy_static;
 use tendermint_rpc::Url;
 use tracing::Level;
+use std::ops::Add;
 
 use fvm_shared::econ::TokenAmount;
 
@@ -158,7 +159,7 @@ enum Commands {
     RegisteredKeys,
     Encrypt {
         contract_address: String,
-    }
+    },
 }
 
 impl Options {
@@ -334,7 +335,7 @@ async fn main() {
                 .expect("failed to get CreateReturn data");
             let address = ret.eth_address;
             tracing::info!(address = ?address, "contract deployed");
-        },
+        }
         Commands::DeployDemoContract => {
             let spec: serde_json::Value = serde_json::from_str(DEMO_CONTRACT_SPEC_JSON)
                 .expect("failed to parse contract spec");
@@ -386,21 +387,65 @@ async fn main() {
             // get the signing tag from the contract
             let contract = delorean_contract(&contract_address);
             let call = contract.signing_tag();
-            let signing_tag: [u8; 32] = invoke_or_call_contract(&mut client, &contract_address, call, true)
-                .await
-                .expect("failed to call contract");
-            tracing::info!(result = ?signing_tag, "contract call result");
+            let signing_tag: [u8; 32] =
+                invoke_or_call_contract(&mut client, &contract_address, call, true)
+                    .await
+                    .expect("failed to call contract");
+            tracing::info!(signing_tag = ?signing_tag, "contract call returned");
 
-            // get the aggregate pubkey from the network
-            let pubkey_bytes = Vec::new();
+            let QueryResponse { height, value } = client
+                .actor_state(
+                    &fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
+                    FvmQueryHeight::default(),
+                )
+                .await
+                .expect("failed to get cetf actor state");
+
+            let (id, act_state) = value.expect("cetf actor state not found");
+            tracing::info!("Get Cetf State (id: {}) at height {}", id, height);
+            let state: CetfActorState = store
+                .get_cbor(&act_state.state)
+                .expect("failed to get cetf actor")
+                .expect("no actor state found");
+
+            let height: u64 = height.into();
+            let height = height - 1u64;
+            // Get all the validators BLS keys
+            let mut bls_keys_bytes = vec![];
+            let validator_map = cetf_actor::state::ValidatorBlsPublicKeyMap::load(
+                store.clone(),
+                &state.validators,
+                DEFAULT_HAMT_CONFIG,
+                "load validator hamt",
+            )
+            .expect("failed to load validator hamt");
+            validator_map
+                .for_each(|_k, v| {
+                    bls_keys_bytes.push(*v);
+                    Ok(())
+                })
+                .expect("failed to iterate validator hamt");
+
+            let pub_keys = bls_keys_bytes
+                .iter()
+                .map(|b| {
+                    bls_signatures::PublicKey::from_bytes(&b.0)
+                        .expect("failed to parse public key from bytes")
+                })
+                .collect::<Vec<_>>();
+
+            let agg_pubkey = bls_signatures::aggregate_keys(&pub_keys)
+                .expect("failed to aggregate public keys");
+
+            tracing::info!(agg_pubkey = ?hex::encode(&agg_pubkey.as_bytes()), "Computed aggregate BLS pubkey");
 
             // encrypt whatever is on std-in into our armor writer
             let mut armored = tlock_age::armor::ArmoredWriter::wrap_output(vec![]).unwrap();
             tlock_age::encrypt(
                 &mut armored,
                 std::io::stdin().lock(),
-                &hex::decode("dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493").unwrap(), // I think this can be anything..
-                &pubkey_bytes,
+                &[0x0; 32], // I think this can be anything..
+                &agg_pubkey.as_bytes(),
                 signing_tag,
             )
             .unwrap();

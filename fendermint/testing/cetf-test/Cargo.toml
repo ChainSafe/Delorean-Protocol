@@ -44,4 +44,4 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 fendermint_vm_genesis = { path = "../../vm/genesis" }
 fendermint_actor_cetf = { path = "../../actors/cetf" }
-bls-signatures = { version = "0.15.0", default-features = false, features = ["blst"] }
+bls-signatures = { git = "https://github.com/BadBoiLabs/bls-signatures", rev = "1557d58cdae7f04ea6d7f8db78ec64c63bf8af5d" }
