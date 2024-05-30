@@ -13,7 +13,6 @@ use fil_actors_runtime::actor_error;
 use fil_actors_runtime::builtin::singletons::SYSTEM_ACTOR_ADDR;
 use fil_actors_runtime::runtime::{ActorCode, Runtime};
 use fil_actors_runtime::ActorError;
-use fvm_shared::ActorID;
 
 // Note for myself: trampoline initializes a logger if debug mode is enabled.
 fil_actors_runtime::wasm_trampoline!(Actor);
@@ -45,16 +44,17 @@ impl Actor {
     pub fn enqueue_tag(rt: &impl Runtime, tag: EnqueueTagParams) -> Result<(), ActorError> {
         rt.validate_immediate_caller_accept_any()?;
 
-        log::info!(
-            "cetf actor enqueue_tag called by {} with tag {:?}",
-            rt.message().caller(),
-            tag
-        );
-
         rt.transaction(|st: &mut State, rt| {
             if st.enabled {
+                let scheduled_epoch = rt.curr_epoch() + 1;
                 // NOTE: use of epoch is intentional here. In fendermint the epoch is the block height
-                st.add_tag_at_height(rt, &(rt.curr_epoch() as u64), &tag.tag)?;
+                st.add_tag_at_height(rt, &(scheduled_epoch as u64), &tag.tag)?;
+                log::info!(
+                    "Cetf actor enqueue_tag called by {} with tag {:?} for height: {}",
+                    rt.message().caller(),
+                    tag,
+                    scheduled_epoch
+                );
             } else {
                 log::info!("CETF actor is disabled. Not all validators have added their keys. No tag was enqueued.");
             }
@@ -113,10 +113,7 @@ impl Actor {
     }
 
     pub fn add_signed_tag(rt: &impl Runtime, params: AddSignedTagParams) -> Result<(), ActorError> {
-        // TODO: Probaby want to restrict this to validators only or something
-        log::info!("add_signed_tag called");
-        rt.validate_immediate_caller_accept_any()?;
-
+        rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
         rt.transaction(|st: &mut State, rt| {
             st.add_signed_tag_at_height(rt, &params.height, &params.signature)?;
             Ok(())
@@ -128,9 +125,7 @@ impl Actor {
         rt: &impl Runtime,
         params: AddSignedBlockHeightTagParams,
     ) -> Result<(), ActorError> {
-        // TODO: Probaby want to restrict this to validators only or something
-        log::info!("add_signed_blockheight_tag called");
-        rt.validate_immediate_caller_accept_any()?;
+        rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
         rt.transaction(|st: &mut State, rt| {
             st.add_signed_blockheight_tag_at_height(rt, &params.height, &params.signature)?;
             Ok(())

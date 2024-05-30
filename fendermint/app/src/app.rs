@@ -457,8 +457,9 @@ where
         let state_root = state_params.state_root;
 
         tracing::info!(
-            "extend_vote Creating FvmQueryState at height: {}",
-            block_height
+            "extend_vote Creating FvmQueryState at FVM height: {}, TM height: {}",
+            block_height,
+            request.height.value()
         );
 
         let state = FvmQueryState::new(
@@ -478,20 +479,17 @@ where
             // Check for cetf tag
             let mut tags = vec![];
 
-            let cetf_tag = get_tag_at_height(db, &state_root, block_height)
-                .context("failed to get tag at height")?;
+            // We haven't started execution yet so TM height is one ahead of FVM height.
+            let fvm_tags_height = block_height + 1;
 
-            tracing::info!(
-                "ExtendVote cetf_tag at height {}: {:?}",
-                block_height,
-                cetf_tag
-            );
+            let cetf_tag = get_tag_at_height(db, &state_root, fvm_tags_height)
+                .context(format!("failed to get tag at height {}", fvm_tags_height))?;
+
             if let Some(tag) = cetf_tag {
                 tags.push(TagKind::Cetf(tag));
             }
 
-            // Block height
-            tags.push(TagKind::BlockHeight(block_height));
+            tags.push(TagKind::BlockHeight(fvm_tags_height));
             tags
         });
 
@@ -524,7 +522,6 @@ where
         }
 
         if request.vote_extension.is_empty() {
-            tracing::info!("Vote extension empty");
             return Ok(response::VerifyVoteExtension::Accept);
         }
 
@@ -534,8 +531,9 @@ where
         let state_root = state_params.state_root;
 
         tracing::info!(
-            "verify_vote_extension Creating FvmQueryState at height: {}",
-            block_height
+            "verify_vote_extension Creating FvmQueryState at FVM height: {}, TM height: {}",
+            block_height,
+            request.height.value()
         );
         let state = FvmQueryState::new(
             db.clone(),
@@ -548,6 +546,7 @@ where
 
         let sigs: SignedTags =
             from_slice(&request.vote_extension).context("failed to deserialize signatures")?;
+        let fvm_tags_height = block_height + 1;
 
         let tags = Tags(
             sigs.0
@@ -555,16 +554,13 @@ where
                 .map(|sig_kind| match sig_kind {
                     SignatureKind::Cetf(_) => {
                         let db = db.clone();
-                        let tag = get_tag_at_height(db, &state_root, block_height)
+                        let tag = get_tag_at_height(db, &state_root, fvm_tags_height)
                             .context("failed to get tag at height")?
                             .ok_or_else(|| anyhow!("failed to get tag at height: None"))?;
 
                         Ok(TagKind::Cetf(tag))
                     }
-                    SignatureKind::BlockHeight(_) => {
-                        let height = block_height;
-                        Ok(TagKind::BlockHeight(height))
-                    }
+                    SignatureKind::BlockHeight(_) => Ok(TagKind::BlockHeight(fvm_tags_height)),
                 })
                 .collect::<anyhow::Result<Vec<TagKind>>>()?,
         );
@@ -842,28 +838,23 @@ where
                 };
 
                 tracing::info!(
-                    "Aggregation result: cetf_sig: {:?}, height_sig: {:?}",
+                    "Aggregation result (TM Height: {})): cetf_sig: {:?}, height_sig: {:?}",
+                    request.height.value(),
                     agg_cetf_sig,
                     agg_height_sig,
                 );
                 if let Some(agg_cetf) = agg_cetf_sig {
                     cetf_tx.push(cetf_tag_msg_to_chainmessage(&(
-                        request.height.value(),
+                        request.height.value() - 1,
                         agg_cetf,
                     ))?);
                 };
                 if let Some(agg_height) = agg_height_sig {
                     cetf_tx.push(cetf_blockheight_tag_msg_to_chainmessage(&(
-                        request.height.value(),
+                        request.height.value() - 1,
                         agg_height,
                     ))?);
                 };
-
-                tracing::info!(
-                    "Prepare Proposal! height_tags: {}, cetf_tags: {}",
-                    height_sigs.len(),
-                    cetf_sigs.len(),
-                );
             }
             None => {
                 tracing::info!("Prepare proposal with no local last commit");

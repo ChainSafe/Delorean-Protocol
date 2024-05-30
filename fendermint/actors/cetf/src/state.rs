@@ -81,7 +81,7 @@ impl State {
         self.tag_map = tag_map.flush()?;
         log::info!(
             r#"
-            Queuing Cetf Tag at height {}. FVM epoch: {}.
+            Scheduled Cetf Tag for height {}. Current FVM epoch: {}.
             Tag: {:?}
             "#,
             height,
