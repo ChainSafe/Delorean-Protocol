@@ -11,6 +11,14 @@ env_files = [
   { path = "../scripts/ci.env", profile = "ci" },
 ]
 
+[tasks.setup-cetf]
+run_task = { name = [
+  "setup-seed",
+  "node-1-setup",
+  "node-2-setup",
+  "node-3-setup",
+] }
+
 [tasks.fendermint-start-cetf]
 extend = "fendermint-run"
 env = { "ENTRY" = "fendermint", "CMD" = "run", "FLAGS" = """
@@ -20,8 +28,8 @@ env = { "ENTRY" = "fendermint", "CMD" = "run", "FLAGS" = """
 --env FM_BLS_SIGNING_KEY__PATH=/data/${NODE_NAME}/${BLS_PRIV_KEY_PATH} \
 """ }
 
-# Waiting before starting the Eth API for the CometBFT websocket to start listening.
-[tasks.setup-cetf]
+# Start Seed node
+[tasks.setup-seed]
 dependencies = [
   "create-log-volume",
   "test-data-dir",
@@ -30,7 +38,6 @@ dependencies = [
   "docker-network-create",
   "cometbft-init",
   "fendermint-init",
-  # "fendermint-start",
   "fendermint-start-cetf",
   "cometbft-start",
   "ethapi-start",

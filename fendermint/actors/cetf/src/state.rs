@@ -1,19 +1,24 @@
 // Copyright 2022-2024 Protocol Labs
 // SPDX-License-Identifier: Apache-2.0, MIT
 
-use crate::{BlockHeight, Tag};
+use crate::{BlockHeight, Hash32, Tag};
 use crate::{BlsPublicKey, BlsSignature};
 use cid::Cid;
+use fil_actors_runtime::actor_error;
 use fil_actors_runtime::{runtime::Runtime, ActorError, Map2};
 use fvm_ipld_blockstore::Blockstore;
 use fvm_ipld_encoding::tuple::*;
+use fvm_sdk::crypto::hash_into;
 use fvm_shared::address::Address;
+use fvm_shared::crypto::hash::SupportedHashes;
+
+type HashedTag = Hash32;
 
 pub type TagMap<BS> = Map2<BS, BlockHeight, Tag>;
 pub type ValidatorBlsPublicKeyMap<BS> = Map2<BS, Address, BlsPublicKey>;
-pub type SignedTagMap<BS> = Map2<BS, BlockHeight, BlsSignature>;
 
-pub type SignedBlockHeightTags<BS> = Map2<BS, BlockHeight, BlsSignature>;
+pub type SignedHashedTagMap<BS> = Map2<BS, HashedTag, BlsSignature>;
+
 pub use fil_actors_runtime::DEFAULT_HAMT_CONFIG;
 #[derive(Serialize_tuple, Deserialize_tuple, Debug, Clone)]
 pub struct State {
@@ -21,8 +26,7 @@ pub struct State {
     pub validators: Cid, // HAMT[Address] => BlsPublicKey (Assumes static validator set)
     pub enabled: bool,
 
-    pub signed_tags: Cid, // HAMT[BlockHeight] => BlsSignature(bytes 96)
-    pub signed_blockheight_tags: Cid, // HAMT[BlockHeight] => BlsSignature(bytes 96)
+    pub signed_hashed_tags: Cid, // HAMT[HashedTag] => BlsSignature(bytes 96)
 }
 
 impl State {
@@ -32,21 +36,14 @@ impl State {
             ValidatorBlsPublicKeyMap::empty(store, DEFAULT_HAMT_CONFIG, "empty validators")
                 .flush()?;
 
-        let signed_tags =
-            SignedTagMap::empty(store, DEFAULT_HAMT_CONFIG, "empty signed_tags").flush()?;
-
-        let signed_blockheight_tags = SignedBlockHeightTags::empty(
-            store,
-            DEFAULT_HAMT_CONFIG,
-            "empty signed_blockheight_tags",
-        )
-        .flush()?;
+        let signed_hashed_tags =
+            SignedHashedTagMap::empty(store, DEFAULT_HAMT_CONFIG, "empty signed_hashed_tags")
+                .flush()?;
         Ok(State {
             tag_map,
             validators,
             enabled: false,
-            signed_tags,
-            signed_blockheight_tags,
+            signed_hashed_tags,
         })
     }
 
@@ -82,6 +79,15 @@ impl State {
         )?;
         tag_map.set(&height, tag.clone())?;
         self.tag_map = tag_map.flush()?;
+        log::info!(
+            r#"
+            Scheduled Cetf Tag for height {}. Current FVM epoch: {}.
+            Tag: {:?}
+            "#,
+            height,
+            rt.curr_epoch(),
+            tag.0,
+        );
         Ok(())
     }
 
@@ -112,16 +118,25 @@ impl State {
         height: &BlockHeight,
         signature: &BlsSignature,
     ) -> Result<(), ActorError> {
-        log::info!("Message height: {}", rt.curr_epoch());
-        log::info!("Adding signed tag at height {}", height);
-        let mut signed_tags = SignedTagMap::load(
-            rt.store(),
-            &self.signed_tags,
-            DEFAULT_HAMT_CONFIG,
-            "writing tag_map",
-        )?;
-        signed_tags.set(&height, signature.clone())?;
-        self.signed_tags = signed_tags.flush()?;
+        let tag = self
+            .get_tag_at_height(rt.store(), height)?
+            .ok_or_else(|| actor_error!(illegal_state, "Tag not found at height {}", height))?;
+
+        let mut digest = [0u8; 32];
+        hash_into(SupportedHashes::Sha2_256, &tag.0, &mut digest);
+        self.add_signed_and_hashed_tag(rt, digest.into(), signature)?;
+        log::info!(
+            r#"
+            Added Signed Cetf Tag into map at height {}. FVM epoch: {}.
+            Tag: {:?}
+            Hashed Tag: {:?}
+            Signature: {:?}"#,
+            height,
+            rt.curr_epoch(),
+            tag.0,
+            digest,
+            signature,
+        );
         Ok(())
     }
 
@@ -131,16 +146,39 @@ impl State {
         height: &BlockHeight,
         signature: &BlsSignature,
     ) -> Result<(), ActorError> {
-        log::info!("Message height: {}", rt.curr_epoch());
-        log::info!("Adding signed tag at height {}", height);
-        let mut signed_blockheight_tags = SignedBlockHeightTags::load(
+        let pre = height.to_be_bytes().to_vec();
+        let mut digest = [0u8; 32];
+        hash_into(SupportedHashes::Sha2_256, &pre, &mut digest);
+        self.add_signed_and_hashed_tag(rt, digest.into(), signature)?;
+        log::info!(
+            r#"
+            Added Signed BlockHeight into map at height {}. FVM epoch: {}.
+            Tag: {:?}
+            Hashed Tag: {:?}
+            Signature: {:?}"#,
+            height,
+            rt.curr_epoch(),
+            &pre,
+            digest,
+            signature,
+        );
+        Ok(())
+    }
+
+    pub fn add_signed_and_hashed_tag(
+        &mut self,
+        rt: &impl Runtime,
+        hashed_tag: HashedTag,
+        signature: &BlsSignature,
+    ) -> Result<(), ActorError> {
+        let mut signed_hashed_tags = SignedHashedTagMap::load(
             rt.store(),
-            &self.signed_blockheight_tags,
+            &self.signed_hashed_tags,
             DEFAULT_HAMT_CONFIG,
-            "writing signed_blockheight_tags",
+            "writing signed_hashed_tags",
         )?;
-        signed_blockheight_tags.set(&height, signature.clone())?;
-        self.signed_blockheight_tags = signed_blockheight_tags.flush()?;
+        signed_hashed_tags.set(&hashed_tag, signature.clone())?;
+        self.signed_hashed_tags = signed_hashed_tags.flush()?;
         Ok(())
     }
 }
