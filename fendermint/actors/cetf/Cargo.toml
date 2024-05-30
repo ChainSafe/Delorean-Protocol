@@ -22,6 +22,10 @@ serde_tuple = { workspace = true }
 num-traits = { workspace = true }
 frc42_dispatch = { workspace = true }
 log = { workspace = true }
+hex = { workspace = true }
+ethers = { workspace = true}
+getrandom = { version = "0.2", features = ["js"] } # needed so ethers can build for Wasm
+
 [features]
 default = []
 fil-actor = ["fil_actors_runtime/fil-actor"]
