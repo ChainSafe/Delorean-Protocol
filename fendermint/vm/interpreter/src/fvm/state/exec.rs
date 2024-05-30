@@ -23,7 +23,7 @@ use fvm_shared::{
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::fvm::externs::FendermintExterns;
+use crate::fvm::{custom_kernel::LoggingKernel, externs::FendermintExterns};
 use fendermint_vm_core::{chainid::HasChainID, Timestamp};
 use fendermint_vm_encoding::IsHumanReadable;
 
@@ -97,7 +97,7 @@ where
 {
     #[allow(clippy::type_complexity)]
     executor: DefaultExecutor<
-        DefaultKernel<DefaultCallManager<DefaultMachine<DB, FendermintExterns<DB>>>>,
+        LoggingKernel<DefaultCallManager<DefaultMachine<DB, FendermintExterns<DB>>>>,
     >,
 
     /// Hash of the block currently being executed. For queries and checks this is empty.

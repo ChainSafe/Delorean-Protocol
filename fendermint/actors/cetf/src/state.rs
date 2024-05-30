@@ -78,10 +78,7 @@ impl State {
         tag_map.set(&height, tag.clone())?;
         self.tag_map = tag_map.flush()?;
         log::info!(
-            r#"
-            Scheduled Cetf Tag for height {}. Current FVM epoch: {}.
-            Tag: {:?}
-            "#,
+            "Scheduled Cetf Tag for height {}. Current FVM epoch: {}. Tag: {:?}",
             height,
             rt.curr_epoch(),
             tag.0,
@@ -122,12 +119,13 @@ impl State {
 
         self.add_signed_and_hashed_tag(rt, tag, signature)?;
         log::info!(
-            r#"
-            Added Signed Cetf Tag into map at height {}. FVM epoch: {}.
-            Tag: {:?}
-            Signature: {:?}"#,
+            "Added Signed Cetf Tag into map at height {}. FVM epoch: {}.",
             height,
             rt.curr_epoch(),
+        );
+        log::trace!(
+            r#"Tag: {:?}
+            Signature: {:?}"#,
             tag.0,
             signature,
         );
@@ -145,14 +143,15 @@ impl State {
         hash_into(SupportedHashes::Sha2_256, &pre, &mut digest);
         self.add_signed_and_hashed_tag(rt, digest.into(), signature)?;
         log::info!(
-            r#"
-            Added Signed BlockHeight into map at height {}. FVM epoch: {}.
-            Height: {:?}
-            Hashed Blockheight (tag): {:?}
-            Signature: {:?}"#,
+            "Added Signed BlockHeight into map at reported height {}. FVM epoch: {}.",
             height,
             rt.curr_epoch(),
-            &pre,
+        );
+        log::trace!(
+            r#"Height: {:?}
+            Hashed Blockheight (tag): {:?}
+            Signature: {:?}"#,
+            pre,
             digest,
             signature,
         );
