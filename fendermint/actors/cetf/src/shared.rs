@@ -49,6 +49,17 @@ impl DerefMut for Tag {
     }
 }
 
+impl MapKey for Tag {
+    fn to_bytes(&self) -> Result<Vec<u8>, String> {
+        Ok(self.0.to_vec())
+    }
+    fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
+        let mut buf = [0; 32];
+        buf.copy_from_slice(&bytes);
+        Ok(Self(buf))
+    }
+}
+
 /// A BLS Public Key used for signing tags.
 #[derive(Deserialize, Serialize, Clone, Copy, Eq, PartialEq, Debug)]
 #[serde(transparent)]

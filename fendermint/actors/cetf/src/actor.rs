@@ -52,20 +52,21 @@ impl Actor {
             .ok_or(ActorError::assertion_failed(
                 "No delegated address for caller".to_string(),
             ))?;
-        let bytes = calling_contract.payload_bytes();
-        let calling_eth_address = &bytes[..bytes.len() - 4];
+        let calling_eth_address = &calling_contract.payload_bytes()[1..];
+        assert!(calling_eth_address.len() == 20, "Invalid eth address length");
 
         // hash together the calling address and the tag to create a unique identifier for the tag
         let mut hashdata = Vec::new();
         hashdata.extend_from_slice(&calling_eth_address);
         hashdata.extend_from_slice(&tag.tag.0);
-        let signing_tag = Keccak256::digest(hashdata);
+        let mut signing_tag = [0x0_u8; 32];
+        signing_tag.copy_from_slice(&Keccak256::digest(hashdata));
 
         log::info!(
             "cetf actor enqueue_tag called by {} with tag {:?}. Resulting signing tag is {:?}",
             hex::encode(calling_eth_address),
             tag,
-            signing_tag,
+            &signing_tag,
         );
 
         let scheduled_epoch = rt.transaction(|st: &mut State, rt| {
@@ -75,13 +76,13 @@ impl Actor {
             let scheduled_epoch = rt.curr_epoch() + 2;
             if st.enabled {
                 // NOTE: use of epoch is intentional here. In fendermint the epoch is the block height
-                st.add_tag_at_height(rt, &(scheduled_epoch as u64), &tag.tag)?;
                 log::info!(
                     "Cetf actor enqueue_tag called by {} with tag {:?} for height: {}",
                     rt.message().caller(),
-                    signing_tag,
+                    &signing_tag,
                     scheduled_epoch
                 );
+                st.add_tag_at_height(rt, &(scheduled_epoch as u64), &signing_tag.into())?;
             } else {
                 log::info!("CETF actor is disabled. Not all validators have added their keys. No tag was enqueued.");
             }
@@ -91,8 +92,6 @@ impl Actor {
         Ok(scheduled_epoch as u64)
     }
 
-    /// Clear a tag as presumably it has now been signed by the validators at it corresponding height
-    /// Callable only by the system actor
     pub fn get_tag(rt: &impl Runtime, params: GetTagParams) -> Result<(), ActorError> {
         log::info!("get_tag called");
         rt.validate_immediate_caller_accept_any()?;

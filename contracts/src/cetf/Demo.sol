@@ -16,19 +16,19 @@ contract DeloreanDemo {
     error InsufficientFunds();
     error BlockHeightNotReached();
 
-    function releaseKey() public {
+    function releaseKey() public returns (bool) {
         
-        // Check the conditions and revert if they are not met
-        if (block.number < BLOCK_HEIGHT_REQUIRED) {
-            revert BlockHeightNotReached();
-        }
-        if (address(this).balance < FUNDING_GOAL ) {
-            revert InsufficientFunds();
-        }
+        // // Check the conditions and revert if they are not met
+        // if (block.number < BLOCK_HEIGHT_REQUIRED) {
+        //     revert BlockHeightNotReached();
+        // }
+        // if (address(this).balance < FUNDING_GOAL ) {
+        //     revert InsufficientFunds();
+        // }
 
         // All conditions are met so trigger the validators to produce the decryption key
         CetfAPI.enqueueTag(TAG);
-        return;
+        return (true);
     }
 
     // Helper function to allow retrieving the bytes32 tag that the validators will be signing
