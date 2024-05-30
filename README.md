@@ -4,7 +4,7 @@ Encrypt To-The-Future with programmable key release conditions!
 
 ## Overview
 
-The [DRAND protocol](https://drand.love/) allows for practical encryption to the future. A plaintext can is encrypted using Identity Based Encryption (IBE) such that the decryption key is produced when a threshold of DRAND operators sign a chosen message. The message is chosen to be a block height in the future so you can be certain that when the network reaches that height the decryption key will be automatically generated and made public by the network.
+The [DRAND protocol](https://drand.love/) and [tlock](https://github.com/drand/tlock) allow for practical encryption to the future. A plaintext can is encrypted using Identity Based Encryption (IBE) such that the decryption key is produced when a threshold of DRAND operators sign a chosen message. The message is chosen to be a block height in the future so you can be certain that when the network reaches that height the decryption key will be automatically generated and made public by the network.
 
 Delorean protocol extends this idea to allow programmable conditions for decryption key release while maintaining the same (and in some cases better) security guarantees. Users can deploy Solidity smart contracts that encode the conditions under which the network operators must generate the decryption key in order to keep the network progressing. Some examples might be:
 
@@ -49,6 +49,34 @@ and this is what the Delorean protocol produces when the contract triggers the c
 
 ## Usage Flow
 
+Creating conditionally decryptable data with Delorean can be done as follows:
+
+1. Create the Solidity contract encoding the key release conditions. This should call `DeloreanAPI.enqueueTag(<tag>)` only when the conditions are met.
+
+2. Deploy this contract to the Delorean subnet chain and obtain its contract address
+
+3. Encrypt the data locally using the Delorean CLI `cat data.txt | delorean encrypt <contract-address> > encrypted.txt`
+    - Under the hood this retrieves the tag and validator aggregate BLS public keys by making RPC calls to the Delorean client
+
+4. (optional) Upload the data to a public network such as IPFS or Filecoin
+
+To attempt to decrypt data run the following
+
+1. `cat ./encrypted.txt | delorean decrypt <contract-address> > decrypted.txt`
+
+    - This will look in the state and see if the decryption key for this data has been released. If so it will decrypt it otherwise it will error
+
+
+## Security considerations
+
+The security of the protocol relies on the following. Where possible these are compared with DRAND/tlock
+
+- The 2/3 of the network validators have not colluded to produce decryption keys in secret
+    - This is the same assumption as tlock although here it is slightly better. In tlock because the tags are block heights and hence predictable if the operators ever collude they can derive all possible future keys. In Delorean they can only derive all keys for known tags.
+
+- The protocol depends on the underlying security of the Threshold BLS encryption scheme of [^tlock]
+
+- Liveness of the key release inherits the same liveness guarantees as CometBFT. That is less than 1/3 of the total weight of the validator set is malicious or faulty
 
 
 ## References
