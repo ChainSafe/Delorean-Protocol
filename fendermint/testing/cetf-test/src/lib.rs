@@ -33,3 +33,29 @@
 //! ```
 //!
 //! Make sure you installed cargo-make by running `cargo install cargo-make` first.
+
+use cid::Cid;
+use fendermint_rpc::QueryClient;
+use fendermint_vm_message::query::FvmQueryHeight;
+use fvm_ipld_blockstore::Blockstore;
+
+#[derive(Clone)]
+pub struct RemoteBlockstore<C> {
+    client: C,
+}
+
+impl<C> RemoteBlockstore<C> {
+    pub fn new(client: C) -> Self {
+        Self { client }
+    }
+}
+
+impl<C: QueryClient> Blockstore for RemoteBlockstore<C> {
+    fn get(&self, k: &Cid) -> anyhow::Result<Option<Vec<u8>>> {
+        futures::executor::block_on(self.client.ipld(k, FvmQueryHeight::default()))
+    }
+
+    fn put_keyed(&self, _k: &Cid, _block: &[u8]) -> anyhow::Result<()> {
+        panic!("never intended to use put on the read-only blockstore")
+    }
+}

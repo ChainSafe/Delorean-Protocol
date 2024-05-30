@@ -16,14 +16,17 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Context};
 use bls_signatures::Serialize;
 use bytes::Bytes;
+use cetf_actor::State as CetfActorState;
 use clap::{Parser, Subcommand};
 use ethers::abi::Tokenizable;
 use ethers::prelude::*;
 use fendermint_actor_cetf as cetf_actor;
-use fendermint_rpc::query::QueryClient;
+use fendermint_actor_cetf::state::DEFAULT_HAMT_CONFIG;
+use fendermint_cetf_test::RemoteBlockstore;
+use fendermint_rpc::query::{QueryClient, QueryResponse};
 use fendermint_vm_actor_interface::eam::{self, CreateReturn, EthAddress};
 use fendermint_vm_message::query::FvmQueryHeight;
-use fvm_ipld_encoding::RawBytes;
+use fvm_ipld_encoding::{CborStore, RawBytes};
 use fvm_shared::address::Address;
 use fvm_shared::chainid::ChainID;
 use lazy_static::lazy_static;
@@ -121,6 +124,7 @@ enum Commands {
     CallExampleContract {
         address: String,
     },
+    RegisteredKeys,
 }
 
 impl Options {
@@ -143,6 +147,7 @@ async fn main() {
         .init();
 
     let client = FendermintClient::new_http(opts.url, None).expect("error creating client");
+    let store = RemoteBlockstore::new(client.clone());
 
     let sk =
         SignedMessageFactory::read_secret_key(&opts.secret_key).expect("error reading secret key");
@@ -206,6 +211,37 @@ async fn main() {
             assert!(res.response.tx_result.code.is_ok(), "deliver is ok");
             assert!(res.return_data.is_some());
         }
+        Commands::RegisteredKeys => {
+            let QueryResponse { height, value } = client
+                .actor_state(
+                    &fendermint_vm_actor_interface::cetf::CETFSYSCALL_ACTOR_ADDR,
+                    FvmQueryHeight::default(),
+                )
+                .await
+                .expect("failed to get cetf actor state");
+
+            let (id, act_state) = value.expect("cetf actor state not found");
+            tracing::info!("Get Cetf State (id: {}) at height {}", id, height);
+            let state: CetfActorState = store
+                .get_cbor(&act_state.state)
+                .expect("failed to get cetf actor")
+                .expect("no actor state found");
+
+            let validator_map = cetf_actor::state::ValidatorBlsPublicKeyMap::load(
+                store,
+                &state.validators,
+                DEFAULT_HAMT_CONFIG,
+                "load validator hamt",
+            )
+            .expect("failed to load validator hamt");
+            validator_map
+                .for_each(|k, v| {
+                    tracing::info!("Validator: {}, Bls: {:?}", k, v);
+                    Ok(())
+                })
+                .expect("failed to iterate validator hamt");
+        }
+
         Commands::QueueTag => {
             let to_queue: [u8; 32] = std::array::from_fn(|i| i as u8);
             let params = RawBytes::serialize(cetf_actor::EnqueueTagParams {

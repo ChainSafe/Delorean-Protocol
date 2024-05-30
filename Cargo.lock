@@ -2911,6 +2911,8 @@ dependencies = [
  "fendermint_vm_actor_interface",
  "fendermint_vm_genesis",
  "fendermint_vm_message",
+ "futures",
+ "fvm_ipld_blockstore",
  "fvm_ipld_encoding",
  "fvm_shared",
  "hex",
