@@ -314,10 +314,10 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Encrypt { contract_address } => {
             let signing_tag = retrieve_signing_tag(&mut client, &contract_address).await?;
-            tracing::info!(signing_tag = ?signing_tag, "contract call returned");
+            // tracing::info!(signing_tag = ?signing_tag, "contract call returned");
 
             let agg_pubkey = get_agg_pubkey(&client, &store).await?;
-            tracing::info!(agg_pubkey = ?hex::encode(&agg_pubkey.as_bytes()), "Computed aggregate BLS pubkey");
+            // tracing::info!(agg_pubkey = ?hex::encode(&agg_pubkey.as_bytes()), "Computed aggregate BLS pubkey");
 
             // encrypt whatever is on std-in into our armor writer
             let mut armored = tlock_age::armor::ArmoredWriter::wrap_output(vec![]).unwrap();
@@ -377,7 +377,7 @@ async fn invoke_or_call_contract<T: Tokenizable>(
             .await
             .context("failed to invoke FEVM")?;
 
-        tracing::info!(tx_hash = ?res.response.hash, "invoked transaction");
+        // tracing::info!(tx_hash = ?res.response.hash, "invoked transaction");
 
         res.return_data
     } else {
@@ -455,7 +455,7 @@ async fn get_agg_pubkey(
         .expect("failed to get cetf actor state");
 
     let (id, act_state) = value.expect("cetf actor state not found");
-    tracing::info!("Get Cetf State (id: {}) at height {}", id, height);
+    // tracing::info!("Get Cetf State (id: {}) at height {}", id, height);
     let state: CetfActorState = store
         .get_cbor(&act_state.state)
         .expect("failed to get cetf actor")
