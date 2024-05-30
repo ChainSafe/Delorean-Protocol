@@ -3161,6 +3161,7 @@ dependencies = [
  "fvm_ipld_encoding",
  "fvm_shared",
  "hex",
+ "k256",
  "lazy_static",
  "prost",
  "serde",
