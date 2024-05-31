@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.17;
 
-import "./CetfAPI.sol";
+import "./DeloreanAPI.sol";
 
 /// @title A demo contract to show what is possible with Delorean protocol
 /// @author BadBoi Labs 
@@ -11,7 +11,7 @@ contract DeloreanDemo {
 
     uint256 constant FUNDING_GOAL = 88 ether;
     uint256 constant BLOCK_HEIGHT_REQUIRED = 10;
-    bytes32 constant TAG = 0x1111111111111111111111111111111111111111111111111111111111111111; // this is to allow a contract to manage multiple keys
+    bytes32 constant MEMO = 0x1111111111111111111111111111111111111111111111111111111111111111; // this is to allow a contract to manage multiple keys
 
     error InsufficientFunds();
     error BlockHeightNotReached();
@@ -27,13 +27,13 @@ contract DeloreanDemo {
         // }
 
         // All conditions are met so trigger the validators to produce the decryption key
-        CetfAPI.enqueueTag(TAG);
+        DeloreanAPI.enqueueTag(MEMO);
         return (true);
     }
 
     // Helper function to allow retrieving the bytes32 tag that the validators will be signing
     // which includes the contract address as well as the variable tag component
     function signingTag() public view returns (bytes32) {
-        return keccak256(abi.encodePacked(address(this), TAG));
+        return keccak256(abi.encodePacked(address(this), MEMO));
     }
 }

@@ -8,7 +8,7 @@ import "solidity-cborutils/contracts/CBOR.sol";
 
 /// @title This library is a proxy to the singleton CETF actor (address: f05)
 /// @author BadBoi Labs
-library CetfAPI {
+library DeloreanAPI {
     using CBOR for CBOR.CBORBuffer;
 
     struct EnqueueTagParams {
