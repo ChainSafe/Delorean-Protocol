@@ -1,6 +1,6 @@
 # Delorean Protocol
 
-![](https://github.com/BadBoiLabs/Delorean-Protocol/blob/044cf492dab6f6c2bbc490a9e2dde65013a1cce8/Delorean-Docs/assets/logo.png?raw=true)
+![](https://github.com/BadBoiLabs/Delorean-Protocol/blob/ee97ed82884922a42d275152fb857b47a6e8387d/Delorean-Docs/assets/logo.png?raw=true =300x300)
 
 Programmable Encryption To-The-Future!
 
@@ -19,6 +19,9 @@ A Fendermint blockchain for encryption-to-the-future using Identity Based Encryp
 ---
 
 ## Identity Based Encryption
+
+<!-- .slide: style="font-size: 28px;" -->
+
 
 - Allows encrypting data such that the decrption key is a chosen value
 
@@ -47,6 +50,11 @@ Delorean Protocol:
 
 - Includes a Solidity API for triggering tag signing
 
+---
+
+## Architecture
+
+![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/ee97ed82884922a42d275152fb857b47a6e8387d/Delorean-Docs/diagrams/arch.excalidraw.svg)
 
 ---
 
@@ -88,24 +96,20 @@ contract DeloreanDemo {
 
 ## 2. Encrypt Data Offchain
 
-![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/044cf492dab6f6c2bbc490a9e2dde65013a1cce8/Delorean-Docs/diagrams/flow_2.excalidraw.svg)
-
-> `echo 'Where we are going, we dont need centralized key registries!' | delorean-cli encrypt $CONTRACT_ADDRESS > encrypted.txt`
+![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/ee97ed82884922a42d275152fb857b47a6e8387d/Delorean-Docs/diagrams/flow_2.excalidraw.svg)
 
 ---
 
 ## 3. Trigger Key Generation Conditions
 
 
-![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/044cf492dab6f6c2bbc490a9e2dde65013a1cce8/Delorean-Docs/diagrams/flow_3.excalidraw.svg)
-
-> `delorean-cli call-release-keys $CONTRACT_ADDRESS`
+![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/ee97ed82884922a42d275152fb857b47a6e8387d/Delorean-Docs/diagrams/flow_3.excalidraw.svg)
 
 ---
 
 ## 4.1 Validators Sign Tag
 
-![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/044cf492dab6f6c2bbc490a9e2dde65013a1cce8/Delorean-Docs/diagrams/flow_4.excalidraw.svg)
+![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/ee97ed82884922a42d275152fb857b47a6e8387d/Delorean-Docs/diagrams/flow_4.excalidraw.svg)
 
 > 2/3 validators must sign tag or network will halt.
 > Key generation is coupled to network liveness guarantees
@@ -114,18 +118,22 @@ contract DeloreanDemo {
 
 ## 4.2 Block Producer Aggregates Key
 
-![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/044cf492dab6f6c2bbc490a9e2dde65013a1cce8/Delorean-Docs/diagrams/flow_5.excalidraw.svg)
+![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/ee97ed82884922a42d275152fb857b47a6e8387d/Delorean-Docs/diagrams/flow_5.excalidraw.svg)
 
 ---
 
 ## 5. Decrypt
 
-![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/044cf492dab6f6c2bbc490a9e2dde65013a1cce8/Delorean-Docs/diagrams/flow_6.excalidraw.svg)
+![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/ee97ed82884922a42d275152fb857b47a6e8387d/Delorean-Docs/diagrams/flow_6.excalidraw.svg)
 
 > Decryption key and message are public data
 > Everyone can now decrypt
 
-> `cat ./encrypted.txt | delorean-cli decrypt $CONTRACT_ADDRESS`
+---
+
+## Demo
+
+![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/ee97ed82884922a42d275152fb857b47a6e8387d/Delorean-Docs/diagrams/demo.excalidraw.svg)
 
 ---
 
@@ -137,3 +145,11 @@ contract DeloreanDemo {
     - Key is generated if the contract does not receive a periodic payment 😈
 - Dead Man Switch
     - Key is generated the contract it doesn't receive a 'heartbeat' transaction from a preauthrized account for a number of blocks
+
+---
+
+### Thanks
+
+![](https://github.com/BadBoiLabs/Delorean-Protocol/blob/ee97ed82884922a42d275152fb857b47a6e8387d/Delorean-Docs/assets/logo.png?raw=true =400x400)
+
+*"Where we're going, we don't need centralized key registries!"*

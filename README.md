@@ -103,7 +103,7 @@ The demo runs against a standalone network (not a subnet) with 4 validators.
 To start the testnet run the following:
 
 ```shell
-cd fendermint/testing/delorean-test/
+cd fendermint/testing/delorean-cli/
 cargo make setup-cetf && cargo make node-1-setup && cargo make node-2-setup  && cargo make node-3-setup
 ```
 
