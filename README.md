@@ -125,10 +125,11 @@ cargo make register-bls-keys
 cargo make deploy-demo-contract
 ```
 
-Copy the deployed contract address to use in future commands
+Set env vars for the deployed contract address to use in future commands
 
 ```shell
-export CONTRACT_ADDRESS=0x.....
+export CONTRACT_ADDRESS="0x....."
+export DELORIAN_SECRET_KEY="./test-data/keys/volvo.sk"
 ```
 
 ### Encrypt
@@ -136,7 +137,7 @@ export CONTRACT_ADDRESS=0x.....
 The encrypt command takes a stream on std-in and encrypts it. Lets pipe a message to have it encrypted
 
 ```shell
-echo 'Where we are going, we dont need centralized key registries!' | delorean-cli --secret-key test-data/keys/volvo.sk encrypt $CONTRACT_ADDRESS > encrypted.txt 
+echo 'Where we are going, we dont need centralized key registries!' | delorean-cli encrypt $CONTRACT_ADDRESS > encrypted.txt 
 ```
 
 Take a look at the encrypted output by running `cat encrypted.txt`. It uses the [age](https://github.com/FiloSottile/age) encryption specification to encrypt large plaintexts.
@@ -153,7 +154,7 @@ Deposit at least 88 FIL to the contract to enable the key release conditions
 Then call the `releaseKey` method 
 
 ```shell
-delorean-cli --secret-key test-data/keys/volvo.sk call-release-keys $CONTRACT_ADDRESS
+delorean-cli call-release-keys $CONTRACT_ADDRESS
 ```
 
 ### Decrypt
@@ -161,7 +162,7 @@ delorean-cli --secret-key test-data/keys/volvo.sk call-release-keys $CONTRACT_AD
 The decrypt command can now be used to retrieve the generated key from the store and decrypt our data
 
 ```shell
-cat ./encrypted.txt | delorean-cli --secret-key test-data/keys/volvo.sk decrypt $CONTRACT_ADDRESS
+cat ./encrypted.txt | delorean-cli decrypt $CONTRACT_ADDRESS
 ```
 
 ## Security Considerations

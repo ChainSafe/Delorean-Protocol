@@ -108,7 +108,7 @@ pub struct Options {
 
     /// Path to the secret key to deploy with, expected to be in Base64 format,
     /// and that it has a corresponding f410 account in genesis.
-    #[arg(long, short)]
+    #[arg(long, short, env = "DELORIAN_SECRET_KEY")]
     pub secret_key: PathBuf,
 }
 
@@ -473,7 +473,7 @@ async fn invoke_or_call_contract<T: Tokenizable>(
         res.return_data
     };
 
-    let bytes = return_data.ok_or(anyhow!("the contract did not return any data"))?;
+    let bytes = return_data.ok_or(anyhow!("Contract returned error. Key release denied."))?;
 
     let res = decode_function_data(&call.function, bytes, false)
         .context("error deserializing return data")?;

@@ -90,7 +90,7 @@ contract DeloreanDemo {
 
 ![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/044cf492dab6f6c2bbc490a9e2dde65013a1cce8/Delorean-Docs/diagrams/flow_2.excalidraw.svg)
 
-> `echo 'Where we are going, we dont need centralized key registries!' | delorean-cli --secret-key test-data/keys/volvo.sk encrypt $CONTRACT_ADDRESS > encrypted.txt`
+> `echo 'Where we are going, we dont need centralized key registries!' | delorean-cli encrypt $CONTRACT_ADDRESS > encrypted.txt`
 
 ---
 
@@ -99,7 +99,7 @@ contract DeloreanDemo {
 
 ![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/044cf492dab6f6c2bbc490a9e2dde65013a1cce8/Delorean-Docs/diagrams/flow_3.excalidraw.svg)
 
-> `delorean-cli --secret-key test-data/keys/volvo.sk call-release-keys $CONTRACT_ADDRESS`
+> `delorean-cli call-release-keys $CONTRACT_ADDRESS`
 
 ---
 
@@ -125,7 +125,7 @@ contract DeloreanDemo {
 > Decryption key and message are public data
 > Everyone can now decrypt
 
-> `cat ./encrypted.txt | delorean-cli --secret-key test-data/keys/volvo.sk decrypt $CONTRACT_ADDRESS`
+> `cat ./encrypted.txt | delorean-cli decrypt $CONTRACT_ADDRESS`
 
 ---
 
