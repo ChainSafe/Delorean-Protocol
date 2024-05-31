@@ -71,7 +71,7 @@ dependencies = [
 ]
 
 
-# Overriding the env file to enable snapshotting.
+# Overriding the env file.
 # This one is applied on every *container*.
 # The other env files are for `cargo make` itself,
 # the values are only available inside TOML files.
@@ -83,6 +83,7 @@ CMT_P2P_MAX_NUM_OUTBOUND_PEERS=3
 CMT_P2P_MAX_NUM_INBOUND_PEERS=3
 CMT_CONSENSUS_TIMEOUT_COMMIT=1s
 CMT_P2P_PEX=true
+FM_LOG_LEVEL=info,fendermint=info
 EOF
 """
 
@@ -172,7 +173,6 @@ cp $BASE_DIR/${SEED_NODE_NAME}/cometbft/config/genesis.json \
 """
 
 # Copy over validator
-
 [tasks.node-teardown]
 run_task = { name = [
   "cometbft-destroy",
