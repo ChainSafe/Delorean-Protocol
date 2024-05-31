@@ -17,13 +17,17 @@ Delorean protocol extends this idea to allow programmable conditions for decrypt
 
 Using the CLI it is possible to encrypt files which can be published to IPFS or Filecoin allowing for a fully distributed encrypted data access control.
 
-## Design
+This becomes particularly powerful when paired with ZKPs such that the published ciphertext can have accompanying proofs about its content (e.g. that it will decrypt to a private key corresponding to a public key)
 
-Delorean is implemented as an [IPC Subnet](https://docs.ipc.space/) allowing it to be easily bootstrapped and have access to assets from parent chains (e.g. FIL). It uses CometBFT for consensus and a fork of Fendermint for execution which communicate via ABCI.
+## Architecture / How it's made
 
-The feature of CometBFT that makes the protocol possible is the [vote extensions](https://docs.cosmos.network/main/build/abci/vote-extensions) functionality added in ABCI v0.38. In CometBFT validators vote on finalized blocks. Vote extensions allow the execution layer to enforce additional data to be included for votes to be valid. In Delorean the additional data is a BLS signature over the next tag in the queue (more on this later). If this signature is not included then the vote is invalid and cannot be used to finalize the block. The result is that the liveness of the chain becomes coupled to the release of these signed tags and inherits the same guarantees.
+Delorean is implemented as an [IPC Subnet](https://docs.ipc.space/) allowing it to be easily bootstrapped and have access to assets from parent chains (e.g. FIL). It uses CometBFT for consensus and a fork of Fendermint for execution which communicates with the consensus layer via ABCI.
 
-Deloran adds a new actor to the FVM that stores the queue of tags and allows contracts in the FEVM to pay gas to add new tags to the queue. Once a tag is added to the queue the validators must include a signature over it in their next vote or else they are committing a consensus violation. The block proposer combines all of the signatures from the votes into an aggregate and includes an additional transaction which writes it back to the state. This aggregate signature is a valid decryption key.
+The feature of CometBFT that makes the protocol possible is the [vote extension](https://docs.cosmos.network/main/build/abci/vote-extensions) feature added in ABCI v0.38. In CometBFT validators vote on blocks to be finalized. Vote extensions allow the execution layer to enforce additional data to be included for votes to be valid. In Delorean the additional data is a BLS signature over the next tag in the queue (more detail on this later). If this signature is not included then the vote is invalid and cannot be used to finalize the block. The result is that the liveness of the chain becomes coupled to the release of these signed tags and inherits the same guarantees.
+
+### Delorean Actor
+
+Deloran adds a new actor to the FVM that stores the queue of tags and allows contracts in the FEVM to pay gas to enqueue new tags. Once a tag is added to the queue the validators MUST include a signature over it in their next vote or else they are committing a consensus violation. The block proposer combines all of the signatures from the votes into an aggregate and includes an additional transaction which writes it back to the actor state. This aggregate signature is a valid decryption key for data encrypted to this tag!
 
 A tag is defined as:
 
@@ -33,7 +37,11 @@ tag = SHA256(contractAddress || arbitaryData)
 
 It is defined this way so someone else cannot write another contract which causes your key to be released. The tag (and hence decryption key itself) is tied to the address of the contract that manages it.
 
-The tag used in combination with the validator public keys when encrypting data as defined in [^tlock]. This takes place fully-offchain and without any communication with the validators as follows:
+### Cryptography
+
+We use the threshold BLS Identify Based Encryption algorithm of [Gailly, Melissaris and Yolan Romailler (2023)](^tlock) for encryption and decryption.
+
+Encryption is done using the tag used in combination with the validator public keys. This takes place fully-offchain and without any communication with the validators as follows:
 
 ```
 ciphertext = encrypt(message, aggValidatorKey, tag)
@@ -45,7 +53,10 @@ A decryption key is derived from a tag as:
 key = aggregate([sign(tag, key) for key in validatorKeys])
 ```
 
-and this is what the Delorean protocol produces when the contract triggers the call to release the key.
+and this is what the Delorean protocol produces after the contract triggers the call to release the key.
+
+> [!NOTE]  
+> We are using the non-threshold variant of the algorithm for this prototype so all validators must sign. A threshold version could be implemented by having the validators perform a key generation ceremony or by using a modified protocol such as [McFLY -  Döttling et al (2023)](mcfly)
 
 ## Usage Flow
 
@@ -67,7 +78,7 @@ To attempt to decrypt data run the following
     - This will look in the state and see if the decryption key for this data has been released. If so it will decrypt it otherwise it will error
 
 
-## Security considerations
+## Security Considerations
 
 The security of the protocol relies on the following. Where possible these are compared with DRAND/tlock
 
@@ -78,7 +89,13 @@ The security of the protocol relies on the following. Where possible these are c
 
 - Liveness of the key release inherits the same liveness guarantees as CometBFT. That is less than 1/3 of the total weight of the validator set is malicious or faulty
 
+## Future Work
+
+Using the [McFLY](mcfly) protocol would allow encryption to a threshold of signers where these signers can be selected at the time of encryption. This gives more flexibility to the encrypter and makes the protocol more resiliant to validator churn. Unfortunately at the time of the hackathon there is no implementation of this protocol available (but we are working on it).
+
+Future work to produce ZK proofs that a ciphertext will decrypt if the tags are released would give much better guarantees to users of the protocol. That way you could be certain if the keys are released after some funding goal is met that the data will actually decrypt. Even more useful would be if this can be extended to arbitrary ZK proofs about the encrypted data itself. This would allow all kinds of interesting applications (e.g. encrypted transactions).
 
 ## References
 
-- [^tlock]: [tlock: Practical Timelock Encryption from Threshold BLS](https://eprint.iacr.org/2023/189)
+- [tlock]: [tlock: Practical Timelock Encryption from Threshold BLS](https://eprint.iacr.org/2023/189)
+- [mcfly]: [McFly: Verifiable Encryption to the Future Made Practical](https://eprint.iacr.org/2022/433)
