@@ -24,17 +24,16 @@ use ethers::abi::Tokenizable;
 use ethers::prelude::*;
 use fendermint_actor_cetf::state::DEFAULT_HAMT_CONFIG;
 use fendermint_actor_cetf::{self as cetf_actor, BlsSignature};
-use fendermint_cetf_test::RemoteBlockstore;
+use delorean_cli::RemoteBlockstore;
 use fendermint_rpc::query::{QueryClient, QueryResponse};
-use fendermint_vm_actor_interface::eam::{self, CreateReturn, EthAddress};
+use fendermint_vm_actor_interface::eam;
 use fendermint_vm_message::query::FvmQueryHeight;
 use fvm_ipld_encoding::{CborStore, RawBytes};
 use fvm_shared::address::Address;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::econ::TokenAmount;
-use k256::sha2::{Digest, Sha256, Sha512};
+use k256::sha2::{Digest, Sha256};
 use lazy_static::lazy_static;
-use std::ops::Add;
 use tendermint_rpc::Url;
 use tracing::Level;
 
@@ -109,7 +108,7 @@ pub struct Options {
 
     /// Path to the secret key to deploy with, expected to be in Base64 format,
     /// and that it has a corresponding f410 account in genesis.
-    #[arg(long, short)]
+    #[arg(long, short, env = "DELORIAN_SECRET_KEY")]
     pub secret_key: PathBuf,
 }
 
@@ -121,7 +120,7 @@ enum Commands {
     },
     QueueTag,
     DeployDemoContract,
-    CallDemoContract {
+    CallReleaseKeys {
         address: String,
     },
     RegisteredKeys,
@@ -310,7 +309,7 @@ async fn main() -> anyhow::Result<()> {
             let address = ret.eth_address;
             tracing::info!(address = ?address, "contract deployed");
         }
-        Commands::CallDemoContract { address } => {
+        Commands::CallReleaseKeys { address } => {
             let contract = delorean_contract(&address);
             let call = contract.release_key();
 
@@ -474,7 +473,7 @@ async fn invoke_or_call_contract<T: Tokenizable>(
         res.return_data
     };
 
-    let bytes = return_data.ok_or(anyhow!("the contract did not return any data"))?;
+    let bytes = return_data.ok_or(anyhow!("Contract returned error. Key release denied."))?;
 
     let res = decode_function_data(&call.function, bytes, false)
         .context("error deserializing return data")?;

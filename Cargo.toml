@@ -34,6 +34,7 @@ members = [
   "fendermint/vm/*",
   "fendermint/actors",
   "fendermint/actors/chainmetadata",
+  "fendermint/testing/delorean-cli",
 ]
 
 [workspace.package]

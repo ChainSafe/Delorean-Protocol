@@ -194,9 +194,9 @@ fi
 
 [tasks.register-bls-keys-seed]
 script = """
-cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/cetf-test
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/delorean-cli
 
-cargo run --example delorean -- \
+cargo run -- \
   --secret-key test-data/keys/veronica.sk \
   ${VERBOSITY} \
   register-bls \
@@ -205,27 +205,27 @@ cargo run --example delorean -- \
 
 [tasks.register-bls-keys]
 script = """
-cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/cetf-test
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/delorean-cli
 
-cargo run --example delorean -- \
+cargo run -- \
   --secret-key test-data/keys/veronica.sk \
   ${VERBOSITY} \
   register-bls \
   --bls-secret-key test-data/keys/veronica.bls.sk
 
-cargo run --example delorean -- \
+cargo run -- \
   --secret-key test-data/keys/victoria.sk \
   ${VERBOSITY} \
   register-bls \
   --bls-secret-key test-data/keys/victoria.bls.sk
 
-cargo run --example delorean -- \
+cargo run -- \
   --secret-key test-data/keys/vivienne.sk \
   ${VERBOSITY} \
   register-bls \
   --bls-secret-key test-data/keys/vivienne.bls.sk
 
-cargo run --example delorean -- \
+cargo run -- \
   --secret-key test-data/keys/volvo.sk \
   ${VERBOSITY} \
   register-bls \
@@ -234,7 +234,7 @@ cargo run --example delorean -- \
 
 [tasks.deploy-demo-contract]
 script = """
-cargo run --example delorean -- --secret-key test-data/keys/volvo.sk deploy-demo-contract  
+cargo run -- --secret-key test-data/keys/volvo.sk deploy-demo-contract  
 """
 
 [tasks.node-1-setup]

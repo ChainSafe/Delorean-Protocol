@@ -1,110 +1,188 @@
-# InterPlanetary Consensus (IPC)
+![](./Delorean-Docs/assets/banner.png)
 
-**‼️ All the modules in the IPC stack (including the contracts) haven't been audited, tested in depth, or otherwise verified. Moreover, the system is missing critical recovery functionality in case of crashes. There are multiple ways in which you may lose funds moved into an IPC subnet, and we strongly advise against deploying IPC on mainnet and/or using it with tokens with real value.**
+Encrypt To-The-Future with programmable key release conditions!
 
-IPC is a framework that enables on-demand horizontal scalability of networks, by deploying "subnets" running different consensus algorithms depending on the application's requirements. With IPC, dApps can reach planetary scale through recursively scalable subnets, sub-second transactions, robust compute workloads, and highly adaptable WebAssembly runtimes tailored to developer requirements.
+## Overview
 
-Visit the [IPC project page](https://www.ipc.space/) for news and guides.
+The [DRAND protocol](https://drand.love/) and [tlock](https://github.com/drand/tlock) allow for practical encryption to the future. A plaintext can is encrypted using Identity Based Encryption (IBE) such that the decryption key is produced when a threshold of DRAND operators sign a chosen message. The message is chosen to be a block height in the future so you can be certain that when the network reaches that height the decryption key will be automatically generated and made public by the network.
 
-## Prerequisites
+Delorean protocol extends this idea to allow programmable conditions for decryption key release while maintaining the same (and in some cases better) security guarantees. Users can deploy Solidity smart contracts that encode the conditions under which the network operators must generate the decryption key in order to keep the network progressing. Some examples might be:
 
-On Linux (links and instructions for Ubuntu):
+- Fund Raising
+    - Key is released once the contract raises some amount of funds
+- Hush Money
+    - Key is released if the contract does not receive a periodic payment
+- Dead Man Switch
+    - Key is released the contract it doesn't receive a 'heartbeat' transaction from a preauthrized account for a number of blocks
 
-- Install system packages: `sudo apt install build-essential clang cmake pkg-config libssl-dev protobuf-compiler git curl`.
-- Install Rust. See [instructions](https://www.rust-lang.org/tools/install).
-- Install cargo-make: `cargo install --force cargo-make`.
-- Install Docker. See [instructions](https://docs.docker.com/engine/install/ubuntu/).
-- Install Foundry. See [instructions](https://book.getfoundry.sh/getting-started/installation).
+Using the CLI it is possible to encrypt files which can be published to IPFS or Filecoin allowing for a fully distributed encrypted data access control.
 
-On MacOS:
+This becomes particularly powerful when paired with ZKPs such that the published ciphertext can have accompanying proofs about its content (e.g. that it will decrypt to a private key corresponding to a public key)
 
-- Install Xcode from App Store or terminal: xcode-select --install
-- Install Homebrew: https://brew.sh/
-- Install dependencies: brew install jq
-- Install Rust: https://www.rust-lang.org/tools/install (if you have homebrew installed rust, you may need to uninstall that if you get errors in the build)
-- Install Cargo make: cargo install --force cargo-make
-- Install docker: https://docs.docker.com/desktop/install/mac-install/
-- Install foundry: https://book.getfoundry.sh/getting-started/installation
+## Judging Considerations
 
-## Building
+Delorean is a fork of the IPC repo from Protocol Labs.
 
-```
-# make sure that rust has the wasm32 target
-rustup target add wasm32-unknown-unknown
+The work conducted during the hackathon can be seen in [this diff](https://github.com/consensus-shipyard/ipc/compare/main...BadBoiLabs:Delorean-Protocol:cetf)
 
-# add your user to the docker group
-sudo usermod -aG docker $USER && newgrp docker
+This includes:
 
-# clone this repo and build
-git clone https://github.com/consensus-shipyard/ipc.git
-cd ipc
-make
+- Updating Fendermint to support ABCI v0.38
+- Developing a custom FVM actor (Delorean actor)
+- Solidity contracts to interface with actor (DeloreanAPI.sol)
+- Modifications to Fendermint to implement the Delorean protocol
+    - Extend CometBFT votes with signatures
+    - Ensure votes have valid signatures
+    - Have block producer commit aggregate signature to actor state
+- Delorean CLI
+    - encrypt/decrypt
 
-# building will generate the following binaries
-./target/release/ipc-cli --version
-./target/release/fendermint --version
-```
+## Architecture / How it's made
 
-## Run tests
+Delorean is implemented as an [IPC Subnet](https://docs.ipc.space/) allowing it to be easily bootstrapped and have access to assets from parent chains (e.g. FIL). It uses CometBFT for consensus and a fork of Fendermint for execution which communicates with the consensus layer via ABCI.
 
-```
-make test
-```
+The feature of CometBFT that makes the protocol possible is the [vote extension](https://docs.cosmos.network/main/build/abci/vote-extensions) feature added in ABCI v0.38. In CometBFT validators vote on blocks to be finalized. Vote extensions allow the execution layer to enforce additional data to be included for votes to be valid. In Delorean the additional data is a BLS signature over the next tag in the queue (more detail on this later). If this signature is not included then the vote is invalid and cannot be used to finalize the block. The result is that the liveness of the chain becomes coupled to the release of these signed tags and inherits the same guarantees.
 
-## Code organization
+### Delorean Actor
 
-- `ipc/cli`: A Rust binary crate for our client `ipc-cli` application that provides a simple and easy-to-use interface to interact with IPC as a user and run all the processes required for the operation of a subnet.
-- `ipc/provider` A Rust crate that implements the `IpcProvider` library. This provider can be used to interact with IPC from Rust applications (and is what the `ipc-cli` uses under the hood).
-- `ipc/api`: IPC common types and utils.
-- `ipc/wallet`: IPC key management and identity.
-- `fendermint`: Peer implementation to run subnets based on Tendermint Core.
-- `contracts`: A reference implementation of all the actors (i.e. smart contracts) responsible for the operation of the IPC (Inter-Planetary Consensus) protocol.
-- `ipld`: IPLD specific types and libraries
+Deloran adds a new actor to the FVM that stores the queue of tags and allows contracts in the FEVM to pay gas to enqueue new tags. Once a tag is added to the queue the validators MUST include a signature over it in their next vote or else they are committing a consensus violation. The block proposer combines all of the signatures from the votes into an aggregate and includes an additional transaction which writes it back to the actor state. This aggregate signature is a valid decryption key for data encrypted to this tag!
 
-## Documentation and Guides
-
-**We've prepared a [quick start guide](https://docs.ipc.space/quickstarts/deploy-a-subnet) that will have you running and validating on your own subnet quickly, at the cost of detailed explanations.**
-
-For further documentation, see:
-
-- [docs/contracts.md](./docs/ipc/contracts.md) for instructions on how to deploy FEVM actors on subnets.
-- [docs/usage.md](./docs/ipc/usage.md) for instructions on how to use the `ipc-cli` to interact with subnets (from managing your identities, to sending funds to a subnet).
-- [docs/deploying-hierarchy.md](./docs/ipc/deploying-hierarchy.md) for instructions on how to deploy your own instance of IPC on a network.
-
-If you are a developer, see:
-
-- [docs/developers.md](./docs/ipc/developers.md) for useful tips and guides targeted for IPC developers.
-
-## Connecting to a rootnet
-
-You can deploy an IPC hierarchy from any compatible rootnet. The recommended option is to use Filecoin Calibration, but you can also deploy your own.
-
-### Running a subnet in Calibration
-
-Calibration is the primary testnet for Filecoin. It already hosts the IPC actors and can be used as a rootnet on which to deploy new subnets.
-
-In order to use the `ipc-cli` with Calibration we need to have access to a full node syncing with the network. The easiest way to achieve this is to use a [public RPC](https://docs.filecoin.io/networks/calibration/rpcs/). You also need the addresses of the deployed contracts.
-
-If it is the first time that you use your `ipc-cli`, to initialize cli configuration you can run `ipc-cli config init`. This will populate a new default config file in `~/.ipc/config.toml`.
-
-The suggested configuration for the `ipc-cli` is:
+A tag is defined as:
 
 ```
-keystore_path = "~/.ipc"
-
-# Filecoin Calibration
-[[subnets]]
-id = "/r314159"
-
-[subnets.config]
-network_type = "fevm"
-provider_http = "https://api.calibration.node.glif.io/rpc/v1"
-gateway_addr = "0x1AEe8A878a22280fc2753b3C63571C8F895D2FE3"
-registry_addr = "0x0b4e239FF21b40120cDa817fba77bD1B366c1bcD"
+tag = SHA256(contractAddress || arbitaryData)
 ```
 
-To be able to interact with Calibration and run new subnets, some FIL should be provided to, at least, the wallet that will be used by the `ipc-cli` to interact with IPC. You can request some tFIL for your address through the [Calibration Faucet](https://faucet.calibration.fildev.network/funds.html).
+It is defined this way so someone else cannot write another contract which causes your key to be released. The tag (and hence decryption key itself) is tied to the address of the contract that manages it.
 
-## Help
+### Cryptography
 
-If you meet any obstacles join us in **#ipc-help** in the [Filecoin Slack workspace](https://filecoin.io/slack).
+We use the threshold BLS Identify Based Encryption algorithm of [Gailly, Melissaris and Yolan Romailler (2023)](^tlock) for encryption and decryption.
+
+Encryption is done using the tag used in combination with the validator public keys. This takes place fully-offchain and without any communication with the validators as follows:
+
+```
+ciphertext = encrypt(message, aggValidatorKey, tag)
+```
+
+A decryption key is derived from a tag as:
+
+```
+key = aggregate([sign(tag, key) for key in validatorKeys])
+```
+
+and this is what the Delorean protocol produces after the contract triggers the call to release the key.
+
+> [!NOTE]  
+> We are using the non-threshold variant of the algorithm for this prototype so all validators must sign. A threshold version could be implemented by having the validators perform a key generation ceremony or by using a modified protocol such as [McFLY -  Döttling et al (2023)](mcfly)
+
+## Usage Flow
+
+Creating conditionally decryptable data with Delorean can be done as follows:
+
+1. Create the Solidity contract encoding the key release conditions. This should call `DeloreanAPI.enqueueTag(<tag>)` only when the conditions are met.
+
+2. Deploy this contract to the Delorean subnet chain and obtain its contract address
+
+3. Encrypt the data locally using the Delorean CLI `cat data.txt | delorean encrypt <contract-address> > encrypted.txt`
+    - Under the hood this retrieves the tag and validator aggregate BLS public keys by making RPC calls to the Delorean client
+
+4. (optional) Upload the data to a public network such as IPFS or Filecoin
+
+To attempt to decrypt data run the following
+
+1. `cat ./encrypted.txt | delorean decrypt <contract-address> > decrypted.txt`
+
+    - This will look in the state and see if the decryption key for this data has been released. If so it will decrypt it otherwise it will error
+
+
+## Running the Demo
+
+The demo runs against a standalone network (not a subnet) with 4 validators.
+
+To start the testnet run the following:
+
+```shell
+cd fendermint/testing/delorean-cli/
+cargo make setup-cetf && cargo make node-1-setup && cargo make node-2-setup  && cargo make node-3-setup
+```
+
+> ![INFO]
+>If you want to add the network to MetaMask the RPC is `http://localhost:8545` and the Chain ID is `2555887744985227`
+
+Wait a few minutes to build the node docker images and to set up the network. It is comprised of a number of docker containers which can be viewed in the docker desktop application or by running `docker ps`
+
+Install the CLI with
+
+```shell
+cargo install --path .
+```
+
+Then setup our demo with the following:
+
+```shell
+cargo make register-bls-keys  
+cargo make deploy-demo-contract
+```
+
+Set env vars for the deployed contract address to use in future commands
+
+```shell
+export CONTRACT_ADDRESS="0x....."
+export DELORIAN_SECRET_KEY="./test-data/keys/volvo.sk"
+```
+
+### Encrypt
+
+The encrypt command takes a stream on std-in and encrypts it. Lets pipe a message to have it encrypted
+
+```shell
+echo 'Where we are going, we dont need centralized key registries!' | delorean-cli encrypt $CONTRACT_ADDRESS > encrypted.txt 
+```
+
+Take a look at the encrypted output by running `cat encrypted.txt`. It uses the [age](https://github.com/FiloSottile/age) encryption specification to encrypt large plaintexts.
+
+### Trigger Key Generation
+
+Now to trigger the decryption key generation.
+
+Deposit at least 88 FIL to the contract to enable the key release conditions
+
+```shell
+```
+
+Then call the `releaseKey` method 
+
+```shell
+delorean-cli call-release-keys $CONTRACT_ADDRESS
+```
+
+### Decrypt
+
+The decrypt command can now be used to retrieve the generated key from the store and decrypt our data
+
+```shell
+cat ./encrypted.txt | delorean-cli decrypt $CONTRACT_ADDRESS
+```
+
+## Security Considerations
+
+The security of the protocol relies on the following. Where possible these are compared with DRAND/tlock
+
+- The 2/3 of the network validators have not colluded to produce decryption keys in secret
+    - This is the same assumption as tlock although here it is slightly better. In tlock because the tags are block heights and hence predictable if the operators ever collude they can derive all possible future keys. In Delorean they can only derive all keys for known tags.
+
+- The protocol depends on the underlying security of the Threshold BLS encryption scheme of [^tlock]
+
+- Liveness of the key release inherits the same liveness guarantees as CometBFT. That is less than 1/3 of the total weight of the validator set is malicious or faulty
+
+## Future Work
+
+Using the [McFLY](mcfly) protocol would allow encryption to a threshold of signers where these signers can be selected at the time of encryption. This gives more flexibility to the encrypter and makes the protocol more resiliant to validator churn. Unfortunately at the time of the hackathon there is no implementation of this protocol available (but we are working on it).
+
+Future work to produce ZK proofs that a ciphertext will decrypt if the tags are released would give much better guarantees to users of the protocol. That way you could be certain if the keys are released after some funding goal is met that the data will actually decrypt. Even more useful would be if this can be extended to arbitrary ZK proofs about the encrypted data itself. This would allow all kinds of interesting applications (e.g. encrypted transactions).
+
+## References
+
+- [tlock]: [tlock: Practical Timelock Encryption from Threshold BLS](https://eprint.iacr.org/2023/189)
+- [mcfly]: [McFly: Verifiable Encryption to the Future Made Practical](https://eprint.iacr.org/2022/433)
