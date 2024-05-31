@@ -12,12 +12,10 @@ use fvm_sdk::crypto::hash_into;
 use fvm_shared::address::Address;
 use fvm_shared::crypto::hash::SupportedHashes;
 
-type HashedTag = Hash32;
-
 pub type TagMap<BS> = Map2<BS, BlockHeight, Tag>;
 pub type ValidatorBlsPublicKeyMap<BS> = Map2<BS, Address, BlsPublicKey>;
 
-pub type SignedHashedTagMap<BS> = Map2<BS, HashedTag, BlsSignature>;
+pub type SignedHashedTagMap<BS> = Map2<BS, Tag, BlsSignature>;
 
 pub use fil_actors_runtime::DEFAULT_HAMT_CONFIG;
 #[derive(Serialize_tuple, Deserialize_tuple, Debug, Clone)]
@@ -122,19 +120,15 @@ impl State {
             .get_tag_at_height(rt.store(), height)?
             .ok_or_else(|| actor_error!(illegal_state, "Tag not found at height {}", height))?;
 
-        let mut digest = [0u8; 32];
-        hash_into(SupportedHashes::Sha2_256, &tag.0, &mut digest);
-        self.add_signed_and_hashed_tag(rt, digest.into(), signature)?;
+        self.add_signed_and_hashed_tag(rt, tag, signature)?;
         log::info!(
             r#"
             Added Signed Cetf Tag into map at height {}. FVM epoch: {}.
             Tag: {:?}
-            Hashed Tag: {:?}
             Signature: {:?}"#,
             height,
             rt.curr_epoch(),
             tag.0,
-            digest,
             signature,
         );
         Ok(())
@@ -153,8 +147,8 @@ impl State {
         log::info!(
             r#"
             Added Signed BlockHeight into map at height {}. FVM epoch: {}.
-            Tag: {:?}
-            Hashed Tag: {:?}
+            Height: {:?}
+            Hashed Blockheight (tag): {:?}
             Signature: {:?}"#,
             height,
             rt.curr_epoch(),
@@ -168,7 +162,7 @@ impl State {
     pub fn add_signed_and_hashed_tag(
         &mut self,
         rt: &impl Runtime,
-        hashed_tag: HashedTag,
+        tag: Tag,
         signature: &BlsSignature,
     ) -> Result<(), ActorError> {
         let mut signed_hashed_tags = SignedHashedTagMap::load(
@@ -177,7 +171,7 @@ impl State {
             DEFAULT_HAMT_CONFIG,
             "writing signed_hashed_tags",
         )?;
-        signed_hashed_tags.set(&hashed_tag, signature.clone())?;
+        signed_hashed_tags.set(&tag, signature.clone())?;
         self.signed_hashed_tags = signed_hashed_tags.flush()?;
         Ok(())
     }
