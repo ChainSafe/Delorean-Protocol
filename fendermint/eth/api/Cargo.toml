@@ -37,6 +37,7 @@ fendermint_crypto = { path = "../../crypto" }
 fendermint_rpc = { path = "../../rpc" }
 fendermint_vm_actor_interface = { path = "../../vm/actor_interface" }
 fendermint_vm_message = { path = "../../vm/message" }
+tower-http = { version = "0.3.0", features = ["cors"] }
 
 [dev-dependencies]
 async-trait = { workspace = true }

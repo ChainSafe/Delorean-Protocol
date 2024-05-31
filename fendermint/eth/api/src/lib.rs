@@ -6,6 +6,7 @@ use axum::routing::{get, post};
 use fvm_shared::econ::TokenAmount;
 use jsonrpc_v2::Data;
 use std::{net::ToSocketAddrs, sync::Arc, time::Duration};
+use tower_http::cors::CorsLayer;
 
 mod apis;
 mod cache;
@@ -94,5 +95,6 @@ fn make_router(state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/", post(handlers::http::handle))
         .route("/", get(handlers::ws::handle))
+        .layer(CorsLayer::permissive())
         .with_state(state)
 }
