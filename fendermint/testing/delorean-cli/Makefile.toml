@@ -194,7 +194,7 @@ fi
 
 [tasks.register-bls-keys-seed]
 script = """
-cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/cetf-test
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/delorean-cli
 
 cargo run --example delorean -- \
   --secret-key test-data/keys/veronica.sk \
@@ -205,7 +205,7 @@ cargo run --example delorean -- \
 
 [tasks.register-bls-keys]
 script = """
-cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/cetf-test
+cd ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/fendermint/testing/delorean-cli
 
 cargo run --example delorean -- \
   --secret-key test-data/keys/veronica.sk \

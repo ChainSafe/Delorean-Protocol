@@ -2077,6 +2077,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "delorean-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.21.7",
+ "bls-signatures 0.15.0 (git+https://github.com/BadBoiLabs/bls-signatures?rev=1557d58cdae7f04ea6d7f8db78ec64c63bf8af5d)",
+ "bytes",
+ "cid",
+ "clap 4.5.4",
+ "ethers",
+ "fendermint_actor_cetf",
+ "fendermint_crypto",
+ "fendermint_rpc",
+ "fendermint_vm_actor_interface",
+ "fendermint_vm_genesis",
+ "fendermint_vm_message",
+ "futures",
+ "fvm_ipld_blockstore",
+ "fvm_ipld_encoding",
+ "fvm_shared",
+ "hex",
+ "k256",
+ "lazy_static",
+ "prost",
+ "serde",
+ "serde_json",
+ "tendermint",
+ "tendermint-proto",
+ "tendermint-rpc",
+ "tlock_age",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "der"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3136,43 +3173,6 @@ dependencies = [
  "serial_test",
  "tendermint-rpc",
  "tracing",
-]
-
-[[package]]
-name = "fendermint_cetf_test"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.21.7",
- "bls-signatures 0.15.0 (git+https://github.com/BadBoiLabs/bls-signatures?rev=1557d58cdae7f04ea6d7f8db78ec64c63bf8af5d)",
- "bytes",
- "cid",
- "clap 4.5.4",
- "ethers",
- "fendermint_actor_cetf",
- "fendermint_crypto",
- "fendermint_rpc",
- "fendermint_vm_actor_interface",
- "fendermint_vm_genesis",
- "fendermint_vm_message",
- "futures",
- "fvm_ipld_blockstore",
- "fvm_ipld_encoding",
- "fvm_shared",
- "hex",
- "k256",
- "lazy_static",
- "prost",
- "serde",
- "serde_json",
- "tendermint",
- "tendermint-proto",
- "tendermint-rpc",
- "tlock_age",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

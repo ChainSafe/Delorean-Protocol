@@ -19,6 +19,24 @@ Using the CLI it is possible to encrypt files which can be published to IPFS or 
 
 This becomes particularly powerful when paired with ZKPs such that the published ciphertext can have accompanying proofs about its content (e.g. that it will decrypt to a private key corresponding to a public key)
 
+## Judging Considerations
+
+Delorean is a fork of the IPC repo from Protocol Labs.
+
+The work conducted during the hackathon can be seen in [this diff](https://github.com/consensus-shipyard/ipc/compare/main...BadBoiLabs:Delorean-Protocol:cetf)
+
+This includes:
+
+- Updating Fendermint to support ABCI v0.38
+- Developing a custom FVM actor (Delorean actor)
+- Solidity contracts to interface with actor (DeloreanAPI.sol)
+- Modifications to Fendermint to implement the Delorean protocol
+    - Extend CometBFT votes with signatures
+    - Ensure votes have valid signatures
+    - Have block producer commit aggregate signature to actor state
+- Delorean CLI
+    - encrypt/decrypt
+
 ## Architecture / How it's made
 
 Delorean is implemented as an [IPC Subnet](https://docs.ipc.space/) allowing it to be easily bootstrapped and have access to assets from parent chains (e.g. FIL). It uses CometBFT for consensus and a fork of Fendermint for execution which communicates with the consensus layer via ABCI.
@@ -77,6 +95,74 @@ To attempt to decrypt data run the following
 
     - This will look in the state and see if the decryption key for this data has been released. If so it will decrypt it otherwise it will error
 
+
+## Running the Demo
+
+The demo runs against a standalone network (not a subnet) with 4 validators.
+
+To start the testnet run the following:
+
+```shell
+cd fendermint/testing/delorean-test/
+cargo make setup-cetf && cargo make node-1-setup && cargo make node-2-setup  && cargo make node-3-setup
+```
+
+> ![INFO]
+>If you want to add the network to MetaMask the RPC is `http://localhost:8545` and the Chain ID is `2555887744985227`
+
+Wait a few minutes to build the node docker images and to set up the network. It is comprised of a number of docker containers which can be viewed in the docker desktop application or by running `docker ps`
+
+Install the CLI with
+
+```shell
+cargo install --path .
+```
+
+Then setup our demo with the following:
+
+```shell
+cargo make register-bls-keys  
+cargo make deploy-demo-contract
+```
+
+Copy the deployed contract address to use in future commands
+
+```shell
+export CONTRACT_ADDRESS=0x.....
+```
+
+### Encrypt
+
+The encrypt command takes a stream on std-in and encrypts it. Lets pipe a message to have it encrypted
+
+```shell
+echo 'Where we are going, we dont need centralized key registries!' | delorean-cli --secret-key test-data/keys/volvo.sk encrypt $CONTRACT_ADDRESS > encrypted.txt 
+```
+
+Take a look at the encrypted output by running `cat encrypted.txt`. It uses the [age](https://github.com/FiloSottile/age) encryption specification to encrypt large plaintexts.
+
+### Trigger Key Generation
+
+Now to trigger the decryption key generation.
+
+Deposit at least 88 FIL to the contract to enable the key release conditions
+
+```shell
+```
+
+Then call the `releaseKey` method 
+
+```shell
+delorean-cli --secret-key test-data/keys/volvo.sk call-release-keys $CONTRACT_ADDRESS
+```
+
+### Decrypt
+
+The decrypt command can now be used to retrieve the generated key from the store and decrypt our data
+
+```shell
+cat ./encrypted.txt | delorean-cli --secret-key test-data/keys/volvo.sk decrypt $CONTRACT_ADDRESS
+```
 
 ## Security Considerations
 

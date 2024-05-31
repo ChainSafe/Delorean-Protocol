@@ -90,12 +90,16 @@ contract DeloreanDemo {
 
 ![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/044cf492dab6f6c2bbc490a9e2dde65013a1cce8/Delorean-Docs/diagrams/flow_2.excalidraw.svg)
 
+> `echo 'Where we are going, we dont need centralized key registries!' | delorean-cli --secret-key test-data/keys/volvo.sk encrypt $CONTRACT_ADDRESS > encrypted.txt`
+
 ---
 
 ## 3. Trigger Key Generation Conditions
 
 
 ![](https://raw.githubusercontent.com/BadBoiLabs/Delorean-Protocol/044cf492dab6f6c2bbc490a9e2dde65013a1cce8/Delorean-Docs/diagrams/flow_3.excalidraw.svg)
+
+> `delorean-cli --secret-key test-data/keys/volvo.sk call-release-keys $CONTRACT_ADDRESS`
 
 ---
 
@@ -120,6 +124,8 @@ contract DeloreanDemo {
 
 > Decryption key and message are public data
 > Everyone can now decrypt
+
+> `cat ./encrypted.txt | delorean-cli --secret-key test-data/keys/volvo.sk decrypt $CONTRACT_ADDRESS`
 
 ---
 

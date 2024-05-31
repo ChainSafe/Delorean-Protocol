@@ -24,17 +24,16 @@ use ethers::abi::Tokenizable;
 use ethers::prelude::*;
 use fendermint_actor_cetf::state::DEFAULT_HAMT_CONFIG;
 use fendermint_actor_cetf::{self as cetf_actor, BlsSignature};
-use fendermint_cetf_test::RemoteBlockstore;
+use fendermint_delorean_test::RemoteBlockstore;
 use fendermint_rpc::query::{QueryClient, QueryResponse};
-use fendermint_vm_actor_interface::eam::{self, CreateReturn, EthAddress};
+use fendermint_vm_actor_interface::eam;
 use fendermint_vm_message::query::FvmQueryHeight;
 use fvm_ipld_encoding::{CborStore, RawBytes};
 use fvm_shared::address::Address;
 use fvm_shared::chainid::ChainID;
 use fvm_shared::econ::TokenAmount;
-use k256::sha2::{Digest, Sha256, Sha512};
+use k256::sha2::{Digest, Sha256};
 use lazy_static::lazy_static;
-use std::ops::Add;
 use tendermint_rpc::Url;
 use tracing::Level;
 
@@ -121,7 +120,7 @@ enum Commands {
     },
     QueueTag,
     DeployDemoContract,
-    CallDemoContract {
+    CallReleaseKeys {
         address: String,
     },
     RegisteredKeys,
@@ -310,7 +309,7 @@ async fn main() -> anyhow::Result<()> {
             let address = ret.eth_address;
             tracing::info!(address = ?address, "contract deployed");
         }
-        Commands::CallDemoContract { address } => {
+        Commands::CallReleaseKeys { address } => {
             let contract = delorean_contract(&address);
             let call = contract.release_key();
 

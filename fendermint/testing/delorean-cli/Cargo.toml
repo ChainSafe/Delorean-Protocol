@@ -1,12 +1,10 @@
 [package]
-name = "fendermint_cetf_test"
-description = "End-to-end integration testing cetf"
+name = "delorean-cli"
+description = "End-to-end integration testing delorean"
 version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = { workspace = true }
@@ -34,15 +32,11 @@ fendermint_rpc = { path = "../../rpc" }
 futures.workspace = true
 tlock_age = { git = "https://github.com/BadBoiLabs/tlock-rs", rev = "3c375ccfbc0eab77b0481029f0d09021f876377a", features = ["armor"] }
 k256 = { workspace = true, features = ["sha2"] }
-# bls-signatures = { version = "0.15.0", default-features = false, features = ["blst"] }
 
-[dev-dependencies]
 clap = { workspace = true }
 ethers = { workspace = true, features = ["abigen"] }
 hex = { workspace = true }
 lazy_static = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 fendermint_vm_genesis = { path = "../../vm/genesis" }
 fendermint_actor_cetf = { path = "../../actors/cetf" }

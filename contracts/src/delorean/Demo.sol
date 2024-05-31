@@ -10,21 +10,16 @@ import "./DeloreanAPI.sol";
 contract DeloreanDemo {
 
     uint256 constant FUNDING_GOAL = 88 ether;
-    uint256 constant BLOCK_HEIGHT_REQUIRED = 10;
     bytes32 constant MEMO = 0x1111111111111111111111111111111111111111111111111111111111111111; // this is to allow a contract to manage multiple keys
 
     error InsufficientFunds();
-    error BlockHeightNotReached();
 
     function releaseKey() public returns (bool) {
         
         // // Check the conditions and revert if they are not met
-        // if (block.number < BLOCK_HEIGHT_REQUIRED) {
-        //     revert BlockHeightNotReached();
-        // }
-        // if (address(this).balance < FUNDING_GOAL ) {
-        //     revert InsufficientFunds();
-        // }
+        if (address(this).balance < FUNDING_GOAL ) {
+            revert InsufficientFunds();
+        }
 
         // All conditions are met so trigger the validators to produce the decryption key
         DeloreanAPI.enqueueTag(MEMO);
@@ -36,4 +31,7 @@ contract DeloreanDemo {
     function signingTag() public view returns (bytes32) {
         return keccak256(abi.encodePacked(address(this), MEMO));
     }
+
+    // Required so the contract can receive funds
+    receive() external payable  { }
 }
