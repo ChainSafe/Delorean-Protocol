@@ -4,7 +4,7 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::events::{NewBlock, ProposalProcessed};
+use crate::events::{ExtendVote, NewBlock, ProposalProcessed};
 use crate::AppExitCode;
 use crate::BlockHeight;
 use crate::{tmconv::*, VERSION};
@@ -442,6 +442,11 @@ where
     >,
 {
     async fn extend_vote(&self, request: request::ExtendVote) -> AbciResult<response::ExtendVote> {
+        tracing::debug!(
+            height = request.height.value(),
+            time = request.time.to_string(),
+            "extend vote"
+        );
         // Skip at block 0 no state yet.
         if request.height.value() == 0 {
             tracing::info!("Extend vote at height 0. Skipping.");
@@ -456,12 +461,6 @@ where
 
         let state_root = state_params.state_root;
 
-        tracing::info!(
-            "extend_vote Creating FvmQueryState at FVM height: {}, TM height: {}",
-            block_height,
-            request.height.value()
-        );
-
         let state = FvmQueryState::new(
             db,
             self.multi_engine.clone(),
@@ -472,7 +471,6 @@ where
         )
         .context("error creating query state")?;
 
-        // TODO: I think we actually want to do this in ExtendVoteInterpreter::extend_vote. Furthermote, we probably shouldnt ned to borrow db again.
         let db = self.state_store_clone();
 
         let tags = Tags({
@@ -492,25 +490,33 @@ where
             tags.push(TagKind::BlockHeight(fvm_tags_height));
             tags
         });
+        tracing::trace!("Tags to sign: {:?}", tags);
 
         let signatures = self
             .interpreter
             .extend_vote(state, tags)
             .await
             .context("failed to extend vote")?;
-        tracing::info!(
-            "Extend Vote: FVM {}, TM {} Signatures: {:?}",
-            block_height,
-            request.height.value(),
-            signatures.0.iter().map(|s| s.to_vec()).collect::<Vec<_>>()
-        );
+
+        tracing::trace!("Partially Signed Tags: {:?}", signatures);
+
         // Either is_enabled is false or nothing to sign (TODO: We should force signing)
         if signatures.0.is_empty() {
+            emit!(ExtendVote {
+                block_height: request.height.value(),
+                signed_tags: 0,
+                bytes: 0,
+            });
             Ok(response::ExtendVote {
                 vote_extension: Default::default(),
             })
         } else {
             let serialized = to_vec(&signatures).context("failed to serialize signatures")?;
+            emit!(ExtendVote {
+                block_height: request.height.value(),
+                signed_tags: signatures.0.len() as u64,
+                bytes: serialized.len() as u64,
+            });
             Ok(response::ExtendVote {
                 vote_extension: serialized.into(),
             })
@@ -521,6 +527,7 @@ where
         &self,
         request: request::VerifyVoteExtension,
     ) -> AbciResult<response::VerifyVoteExtension> {
+        tracing::debug!(height = request.height.value(), "verify vote extension");
         if request.height.value() == 0 && request.vote_extension.is_empty() {
             tracing::info!("Verify vote extension at height 0. Skipping.");
             return Ok(response::VerifyVoteExtension::Accept);
@@ -535,11 +542,6 @@ where
         let (state_params, block_height) = self.state_params_at_height(height)?;
         let state_root = state_params.state_root;
 
-        tracing::info!(
-            "verify_vote_extension Creating FvmQueryState at FVM height: {}, TM height: {}",
-            block_height,
-            request.height.value()
-        );
         let state = FvmQueryState::new(
             db.clone(),
             self.multi_engine.clone(),
@@ -791,10 +793,6 @@ where
         &self,
         request: request::PrepareProposal,
     ) -> AbciResult<response::PrepareProposal> {
-        // TODO: I believe this is where we should aggregate the partial signatures from the previous block's
-        // vote extensions (well technically in intepreter.prepare?) so that we can inject the aggregated
-        // signature into a transaction to publish to the cetf actor so other contracts on chain can access it.
-
         tracing::debug!(
             height = request.height.value(),
             time = request.time.to_string(),
@@ -816,9 +814,7 @@ where
                     })
                     .flatten()
                     .collect::<Vec<_>>();
-                for v in votes.iter() {
-                    tracing::info!("Signatures {} : {:?}", request.height, v.as_slice());
-                }
+
                 let cetf_sigs = votes
                     .iter()
                     .filter(|t| matches!(t, SignatureKind::Cetf(_)))
@@ -844,19 +840,15 @@ where
                 } else {
                     None
                 };
-                tracing::info!(
-                    "Height Aggregated Sig: {:?}",
-                    agg_height_sig.as_ref().map(|s| s.as_bytes())
-                );
-                tracing::info!(
-                    "Cetf Aggregated Sig: {:?}",
-                    agg_cetf_sig.as_ref().map(|s| s.as_bytes())
-                );
-                tracing::info!(
-                    "Aggregation result (TM Height: {})): cetf_sig: {:?}, height_sig: {:?}",
+
+                tracing::debug!(
+                    r#"prepare proposal signature aggregation result (TM Height: {})): 
+                    agg_cetf_sig: {:?}
+                    agg_height_sig: {:?}
+                    "#,
                     request.height.value(),
-                    agg_cetf_sig,
-                    agg_height_sig,
+                    agg_cetf_sig.as_ref().map(|s| s.as_bytes()),
+                    agg_height_sig.as_ref().map(|s| s.as_bytes()),
                 );
                 if let Some(agg_cetf) = agg_cetf_sig {
                     cetf_tx.push(cetf_tag_msg_to_chainmessage(&(
@@ -931,6 +923,13 @@ where
         &self,
         request: request::FinalizeBlock,
     ) -> AbciResult<response::FinalizeBlock> {
+        tracing::debug!(
+            height = request.height.value(),
+            timestamp = request.time.unix_timestamp(),
+            hash = request.hash.to_string(),
+            "finalize block"
+        );
+
         // BeginBlock
         let block_height = request.height.into();
         let block_hash = match request.hash {
@@ -949,13 +948,6 @@ where
         let db = self.state_store_clone();
         let state = self.committed_state()?;
         let mut state_params = state.state_params.clone();
-
-        tracing::debug!(
-            height = block_height,
-            timestamp = request.time.unix_timestamp(),
-            hash = request.hash.to_string(),
-            "begin block"
-        );
 
         state_params.timestamp = to_timestamp(request.time);
 
@@ -1000,7 +992,7 @@ where
             };
 
             if response.code != 0.into() {
-                tracing::info!(
+                tracing::warn!(
                     "deliver_tx failed: {:?} - {:?}",
                     response.code,
                     response.info

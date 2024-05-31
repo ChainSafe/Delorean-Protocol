@@ -39,5 +39,12 @@ pub struct ParentFinalityVoteIgnored<'a> {
     pub validator: &'a str,
 }
 
+#[derive(Debug, Default)]
+pub struct ExtendVote {
+    pub block_height: BlockHeight,
+    pub signed_tags: u64,
+    pub bytes: u64,
+}
+
 // TODO: Add new events for:
 // * snapshots

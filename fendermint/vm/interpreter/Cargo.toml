@@ -66,6 +66,7 @@ quickcheck = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 ambassador = { workspace = true }
 k256 = { workspace = true }
+regex.workspace = true
 
 [dev-dependencies]
 quickcheck = { workspace = true }

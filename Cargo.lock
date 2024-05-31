@@ -3560,6 +3560,7 @@ dependencies = [
  "quickcheck",
  "quickcheck_macros",
  "rand 0.8.5",
+ "regex",
  "serde",
  "serde_json",
  "serde_with 2.3.3",

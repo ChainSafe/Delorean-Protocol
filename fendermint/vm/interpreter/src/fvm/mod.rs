@@ -5,6 +5,7 @@ use std::path::PathBuf;
 mod broadcast;
 mod check;
 mod checkpoint;
+mod custom_kernel;
 mod exec;
 pub mod extend;
 mod externs;
