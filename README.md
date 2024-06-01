@@ -1,12 +1,38 @@
 ![](./Delorean-Docs/assets/banner.png)
 
-Encrypt To-The-Future with programmable key release conditions!
+![Static Badge](https://img.shields.io/badge/build_for-HackFS_2024-green)
+![GitHub License](https://img.shields.io/github/license/BadBoiLabs/Delorean-Protocol)
+
+
+An IPC subnet for programmable encryption to-the-future.
+
+Our entry for the EthGlobal HackFS 2024 Hackathon
+
+## Judging Considerations
+
+Delorean builds upon the IPC subnet boilerplace provided by Protocol Labs
+
+The work conducted during the hackathon can be viewed in [this diff](https://github.com/BadBoiLabs/Delorean-Protocol/compare/72a51df1dc5ee06474772406171ebcabdc205b69..main)
+
+This includes:
+
+- Updating the runtime to support ABCI v0.38
+- [Developing a custom FVM actor (Delorean actor)](https://github.com/BadBoiLabs/Delorean-Protocol/blob/main/fendermint/actors/cetf/src/actor.rs)
+- [Solidity contracts to interface with actor](https://github.com/BadBoiLabs/Delorean-Protocol/blob/main/contracts/src/delorean/DeloreanAPI.sol)
+- [Modifications to runtime to implement the Delorean protocol](https://github.com/BadBoiLabs/Delorean-Protocol/blob/main/fendermint/app/src/app.rs)
+    - Extend CometBFT votes with signatures
+    - Ensure votes have valid signatures
+    - Have block producer commit aggregate signature to actor state
+- [Delorean CLI](https://github.com/BadBoiLabs/Delorean-Protocol/tree/main/fendermint/testing/delorean-cli)
+    - encrypt/decrypt
 
 ## Overview
 
-The [DRAND protocol](https://drand.love/) and [tlock](https://github.com/drand/tlock) allow for practical encryption to the future. A plaintext can is encrypted using Identity Based Encryption (IBE) such that the decryption key is produced when a threshold of DRAND operators sign a chosen message. The message is chosen to be a block height in the future so you can be certain that when the network reaches that height the decryption key will be automatically generated and made public by the network.
+Practical encryption to the future can be done using a blockchain in combination with witness encryption. A plaintext can is encrypted such that the decryption key is produced when a threshold of validators sign a chosen message. This is used by protocols such as tlock[^tlock] and McFLY[^mcfly].
 
-Delorean protocol extends this idea to allow programmable conditions for decryption key release while maintaining the same (and in some cases better) security guarantees. Users can deploy Solidity smart contracts that encode the conditions under which the network operators must generate the decryption key in order to keep the network progressing. Some examples might be:
+The message is chosen to be a block height in the future. With particular blockchains such as [DRAND](https://drand.love) you can be certain that when the network reaches that height the validators will sign it and the decryption key will be automatically generated and made public by the network. The limitation of this is it only supports encryption to the future. No additional constraints can be placed on key generation.
+
+Delorean protocol extends this idea to allow programmable conditions for decryption key release while maintaining the same (and in some cases better) security guarantees. Users can deploy Solidity smart contracts that encode the conditions under which the network operators must generate a decryption key.Some examples might be:
 
 - Fund Raising
     - Key is released once the contract raises some amount of funds
@@ -14,32 +40,19 @@ Delorean protocol extends this idea to allow programmable conditions for decrypt
     - Key is released if the contract does not receive a periodic payment
 - Dead Man Switch
     - Key is released the contract it doesn't receive a 'heartbeat' transaction from a preauthrized account for a number of blocks
+- Encrypted Transactions / Encrypted Mempool
+- Filecoin Deal integration
+    - Key is released once a particular Filecoin deal is discontinued
+- Price Oracle integration
+    - Key is released if some asset reaches a given price
 
-Using the CLI it is possible to encrypt files which can be published to IPFS or Filecoin allowing for a fully distributed encrypted data access control.
+Being an IPC subnet Delorean is a fully fledged EVM chain that can also message other subnets in the wider network. This means conditions could be encoded that rely on other chains (e.g Filecoin deals).
 
-This becomes particularly powerful when paired with ZKPs such that the published ciphertext can have accompanying proofs about its content (e.g. that it will decrypt to a private key corresponding to a public key)
-
-## Judging Considerations
-
-Delorean is a fork of the IPC repo from Protocol Labs.
-
-The work conducted during the hackathon can be seen in [this diff](https://github.com/consensus-shipyard/ipc/compare/main...BadBoiLabs:Delorean-Protocol:cetf)
-
-This includes:
-
-- Updating Fendermint to support ABCI v0.38
-- Developing a custom FVM actor (Delorean actor)
-- Solidity contracts to interface with actor (DeloreanAPI.sol)
-- Modifications to Fendermint to implement the Delorean protocol
-    - Extend CometBFT votes with signatures
-    - Ensure votes have valid signatures
-    - Have block producer commit aggregate signature to actor state
-- Delorean CLI
-    - encrypt/decrypt
+We also developed a CLI that makes it easy to encrypt and decrypt files with keys tied to deployed condition contracts. Encryption and decryption takes place fully off-chain and does not require communication with the validators.
 
 ## Architecture / How it's made
 
-Delorean is implemented as an [IPC Subnet](https://docs.ipc.space/) allowing it to be easily bootstrapped and have access to assets from parent chains (e.g. FIL). It uses CometBFT for consensus and a fork of Fendermint for execution which communicates with the consensus layer via ABCI.
+Delorean is implemented as an [IPC Subnet](https://docs.ipc.space/) allowing it to be easily bootstrapped and have access to assets from parent chains (e.g. FIL). It uses CometBFT for consensus and a modified version of the FVM for execution which communicates with the consensus layer via ABCI.
 
 The feature of CometBFT that makes the protocol possible is the [vote extension](https://docs.cosmos.network/main/build/abci/vote-extensions) feature added in ABCI v0.38. In CometBFT validators vote on blocks to be finalized. Vote extensions allow the execution layer to enforce additional data to be included for votes to be valid. In Delorean the additional data is a BLS signature over the next tag in the queue (more detail on this later). If this signature is not included then the vote is invalid and cannot be used to finalize the block. The result is that the liveness of the chain becomes coupled to the release of these signed tags and inherits the same guarantees.
 
@@ -84,17 +97,23 @@ Creating conditionally decryptable data with Delorean can be done as follows:
 
 2. Deploy this contract to the Delorean subnet chain and obtain its contract address
 
-3. Encrypt the data locally using the Delorean CLI `cat data.txt | delorean encrypt <contract-address> > encrypted.txt`
-    - Under the hood this retrieves the tag and validator aggregate BLS public keys by making RPC calls to the Delorean client
+3. Encrypt the data locally using the Delorean CLI
+
+```shell
+echo "secret message" | delorean encrypt <contract-address> > encrypted.txt
+```
+
+Under the hood this retrieves the tag from the contract and validator aggregate BLS public keys by making RPC calls to the Delorean client
 
 4. (optional) Upload the data to a public network such as IPFS or Filecoin
 
-To attempt to decrypt data run the following
+5. To attempt to decrypt data run the following
 
-1. `cat ./encrypted.txt | delorean decrypt <contract-address> > decrypted.txt`
+```shell
+cat ./encrypted.txt | delorean decrypt <contract-address> > decrypted.txt
+```
 
-    - This will look in the state and see if the decryption key for this data has been released. If so it will decrypt it otherwise it will error
-
+This will look in the state and see if the decryption key for this data has been released. If so it will decrypt it otherwise it will error.
 
 ## Running the Demo
 
@@ -178,11 +197,11 @@ The security of the protocol relies on the following. Where possible these are c
 
 ## Future Work
 
-Using the [McFLY](mcfly) protocol would allow encryption to a threshold of signers where these signers can be selected at the time of encryption. This gives more flexibility to the encrypter and makes the protocol more resiliant to validator churn. Unfortunately at the time of the hackathon there is no implementation of this protocol available (but we are working on it).
+Delorean becomes particularly powerful when paired with ZKPs. This would allow the published ciphertext to have accompanying proofs about its content (e.g. that it will decrypt to a private key corresponding to a public key). That way you could be certain if the keys are released after some funding goal is met that the data will actually decrypt. Even more useful would be if this can be extended to arbitrary ZK proofs about the encrypted data itself. This would allow all kinds of interesting applications (e.g. encrypted transactions).
 
-Future work to produce ZK proofs that a ciphertext will decrypt if the tags are released would give much better guarantees to users of the protocol. That way you could be certain if the keys are released after some funding goal is met that the data will actually decrypt. Even more useful would be if this can be extended to arbitrary ZK proofs about the encrypted data itself. This would allow all kinds of interesting applications (e.g. encrypted transactions).
+Updating the encryption and decryption to use the strategy of the McFLY[^mcfly] protocol would allow subsets of signers can be selected at the time of encryption. This gives more flexibility to the encrypter and makes the protocol more resilient to validator churn. Unfortunately at the time of the hackathon there is no implementation of this protocol available (but we are working on it).
 
 ## References
 
-- [tlock]: [tlock: Practical Timelock Encryption from Threshold BLS](https://eprint.iacr.org/2023/189)
-- [mcfly]: [McFly: Verifiable Encryption to the Future Made Practical](https://eprint.iacr.org/2022/433)
+- [^tlock]: [tlock: Practical Timelock Encryption from Threshold BLS](https://eprint.iacr.org/2023/189)
+- [^mcfly]: [McFly: Verifiable Encryption to the Future Made Practical](https://eprint.iacr.org/2022/433)
