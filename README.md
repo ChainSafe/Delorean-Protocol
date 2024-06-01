@@ -197,9 +197,9 @@ The security of the protocol relies on the following. Where possible these are c
 
 ## Future Work
 
-Delorean becomes particularly powerful when paired with ZKPs. This would allow the published ciphertext to have accompanying proofs about its content (e.g. that it will decrypt to a private key corresponding to a public key). That way you could be certain if the keys are released after some funding goal is met that the data will actually decrypt. Even more useful would be if this can be extended to arbitrary ZK proofs about the encrypted data itself. This would allow all kinds of interesting applications (e.g. encrypted transactions).
+Delorean becomes particularly powerful when paired with ZKPs. This would allow the published ciphertext to have accompanying proofs about its content (e.g. that it will decrypt to a private key corresponding to a public key).
 
-Updating the encryption and decryption to use the strategy of the McFLY[^mcfly] protocol would allow subsets of signers can be selected at the time of encryption. This gives more flexibility to the encrypter and makes the protocol more resilient to validator churn. Unfortunately at the time of the hackathon there is no implementation of this protocol available (but we are working on it).
+That way you could be certain if the keys are released after some funding goal is met that the data will actually decrypt. Even more useful would be if this can be extended to arbitrary ZK proofs about the encrypted data itself. This would allow all kinds of interesting applications (e.g. encrypted transactions).
 
 ## References
 
