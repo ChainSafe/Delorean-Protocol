@@ -117,6 +117,28 @@ This will look in the state and see if the decryption key for this data has been
 
 ## Running the Demo
 
+### Prerequisites
+
+On Linux (links and instructions for Ubuntu):
+
+- Install system packages: `sudo apt install build-essential clang cmake pkg-config libssl-dev protobuf-compiler git curl`.
+- Install Rust. See [instructions](https://www.rust-lang.org/tools/install).
+- Install cargo-make: `cargo install --force cargo-make`.
+- Install Docker. See [instructions](https://docs.docker.com/engine/install/ubuntu/).
+- Install Foundry. See [instructions](https://book.getfoundry.sh/getting-started/installation).
+
+On MacOS:
+
+- Install Xcode from App Store or terminal: xcode-select --install
+- Install Homebrew: https://brew.sh/
+- Install dependencies: brew install jq
+- Install Rust: https://www.rust-lang.org/tools/install (if you have homebrew installed rust, you may need to uninstall that if you get errors in the build)
+- Install Cargo make: cargo install --force cargo-make
+- Install docker: https://docs.docker.com/desktop/install/mac-install/
+- Install foundry: https://book.getfoundry.sh/getting-started/installation
+
+### Steps
+
 The demo runs against a standalone network (not a subnet) with 4 validators.
 
 To start the testnet run the following:
