@@ -14,7 +14,9 @@ Practical encryption to the future can be done using a blockchain in combination
 
 In these protocols the message is chosen to be a block height in the future. With particular blockchains such as [DRAND](https://drand.love) it is guaranteed that the validators will sign every block height and the decryption key will be automatically generated and made public. The limitation of this is it only supports encryption to the future. No additional constraints can be placed on key generation.
 
-Delorean protocol extends this idea to allow programmable conditions for decryption key release while maintaining the same (and in some cases better) security guarantees. Users can deploy Solidity smart contracts that encode the conditions under which the network operators must generate a decryption key.Some examples might be:
+Delorean protocol extends this idea to allow programmable conditions for decryption key release while maintaining the same (and in some cases better) security guarantees. Users can deploy Solidity smart contracts that encode the conditions under which the network operators must generate a decryption key. 
+
+Some examples might be:
 
 - Fund Raising
     - Key is released once the contract raises some amount of funds
