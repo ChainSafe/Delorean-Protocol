@@ -30,7 +30,7 @@ This includes:
 
 Practical encryption to the future can be done using a blockchain in combination with witness encryption. A plaintext can is encrypted such that the decryption key is produced when a threshold of validators sign a chosen message. This is used by protocols such as tlock[^tlock] and McFLY[^mcfly].
 
-The message is chosen to be a block height in the future. With particular blockchains such as [DRAND](https://drand.love) you can be certain that when the network reaches that height the validators will sign it and the decryption key will be automatically generated and made public by the network. The limitation of this is it only supports encryption to the future. No additional constraints can be placed on key generation.
+In these protocols the message is chosen to be a block height in the future. With particular blockchains such as [DRAND](https://drand.love) it is guaranteed that the validators will sign every block height and the decryption key will be automatically generated and made public. The limitation of this is it only supports encryption to the future. No additional constraints can be placed on key generation.
 
 Delorean protocol extends this idea to allow programmable conditions for decryption key release while maintaining the same (and in some cases better) security guarantees. Users can deploy Solidity smart contracts that encode the conditions under which the network operators must generate a decryption key.Some examples might be:
 
@@ -53,6 +53,8 @@ We also developed a CLI that makes it easy to encrypt and decrypt files with key
 ## Architecture / How it's made
 
 Delorean is implemented as an [IPC Subnet](https://docs.ipc.space/) allowing it to be easily bootstrapped and have access to assets from parent chains (e.g. FIL). It uses CometBFT for consensus and a modified version of the FVM for execution which communicates with the consensus layer via ABCI.
+
+![](./Delorean-Docs/diagrams/arch.excalidraw.svg)
 
 The feature of CometBFT that makes the protocol possible is the [vote extension](https://docs.cosmos.network/main/build/abci/vote-extensions) feature added in ABCI v0.38. In CometBFT validators vote on blocks to be finalized. Vote extensions allow the execution layer to enforce additional data to be included for votes to be valid. In Delorean the additional data is a BLS signature over the next tag in the queue (more detail on this later). If this signature is not included then the vote is invalid and cannot be used to finalize the block. The result is that the liveness of the chain becomes coupled to the release of these signed tags and inherits the same guarantees.
 
@@ -87,7 +89,7 @@ key = aggregate([sign(tag, key) for key in validatorKeys])
 and this is what the Delorean protocol produces after the contract triggers the call to release the key.
 
 > [!NOTE]  
-> We are using the non-threshold variant of the algorithm for this prototype so all validators must sign. A threshold version could be implemented by having the validators perform a key generation ceremony or by using a modified protocol such as [McFLY -  Döttling et al (2023)](mcfly)
+> We are using the non-threshold variant of the algorithm for this prototype so all validators must sign. A threshold version could be implemented by having the validators perform a key generation ceremony or by using a modified protocol such as the one used in [McFLY -  Döttling et al (2023)](mcfly)
 
 ## Usage Flow
 
@@ -100,7 +102,7 @@ Creating conditionally decryptable data with Delorean can be done as follows:
 3. Encrypt the data locally using the Delorean CLI
 
 ```shell
-echo "secret message" | delorean encrypt <contract-address> > encrypted.txt
+echo "secret message" | delorean encrypt <contract-address> -o encrypted.txt
 ```
 
 Under the hood this retrieves the tag from the contract and validator aggregate BLS public keys by making RPC calls to the Delorean client
@@ -110,7 +112,7 @@ Under the hood this retrieves the tag from the contract and validator aggregate 
 5. To attempt to decrypt data run the following
 
 ```shell
-cat ./encrypted.txt | delorean decrypt <contract-address> > decrypted.txt
+cat ./encrypted.txt | delorean decrypt <contract-address> -o decrypted.txt
 ```
 
 This will look in the state and see if the decryption key for this data has been released. If so it will decrypt it otherwise it will error.
@@ -154,6 +156,16 @@ cargo make setup-cetf && cargo make node-1-setup && cargo make node-2-setup  && 
 >If you want to add the network to MetaMask the RPC is `http://localhost:8545` and the Chain ID is `2555887744985227`
 
 Wait a few minutes to build the node docker images and to set up the network. It is comprised of a number of docker containers which can be viewed in the docker desktop application or by running `docker ps`
+
+View the logs of one of the validator nodes by running
+
+```shell
+cargo make follow-logs
+```
+
+in a separate shell
+
+---
 
 Install the CLI with
 
@@ -218,6 +230,24 @@ The security of the protocol relies on the following. Where possible these are c
 - The protocol depends on the underlying security of the Threshold BLS encryption scheme of [^tlock]
 
 - Liveness of the key release inherits the same liveness guarantees as CometBFT. That is less than 1/3 of the total weight of the validator set is malicious or faulty
+
+## Comparisons with existing protocols
+
+#### tlock + DRAND
+
+This scheme only supports encryption-to-the-future without programmable conditions. The underlying cryptography used is the same and inherits the same limitations (e.g. to support a threshold of signers these signers must collaborate to produce a threshold key)
+
+#### McFLY
+
+As described in the paper this scheme also only supports non-programmable encryption-to-the-future. This protocol has the benefit that the signers need never communicate and encryption to a threshold signature can still be done by providing all signing keys at encryption time. This is much more flexible and allows validators to enter and leave the network. 
+
+We intend to move to using this cryptography once an implementation is complete (which we are working on)
+
+#### LIT Protocol
+
+LIT is the most similarly featured existing protocol. It supports programmable encryption with conditions defined as Javascript code that is run by the signers of the network. This supports fetching data from supported blockchains and oracles.
+
+Delorean differs from LIT by being an open network with a permissionless validator set, and by having decryption conditions defined in the blockchain runtime itself rather than relying on external block data providers.
 
 ## Future Work
 
