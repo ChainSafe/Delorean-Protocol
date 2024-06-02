@@ -232,6 +232,14 @@ cargo run -- \
   --bls-secret-key test-data/keys/volvo.bls.sk
 """
 
+
+### Follow logs
+[tasks.follow_logs]
+command = "docker"
+args = ["logs", "-f", "${CONTAINER_NAME}"]
+env = { "CONTAINER_NAME" = "${FM_CONTAINER_NAME}" }
+ignore_errors = true
+
 [tasks.deploy-demo-contract]
 script = """
 cargo run -- --secret-key test-data/keys/volvo.sk deploy-demo-contract  

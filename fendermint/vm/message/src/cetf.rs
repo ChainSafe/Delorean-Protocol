@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 pub enum CetfMessage {
     CetfTag(u64, BlsSignature),
 
-    BlockHeightTag(u64, BlsSignature),
+    // BlockHeightTag(u64, BlsSignature),
 }
 
 #[cfg(feature = "arb")]

@@ -200,7 +200,7 @@ where
                     &[&tag.to_vec()],
                     &[bls_pub_key],
                 );
-                tracing::info!("BLS Verify for {:?} is {:?}", tag, v);
+                // tracing::info!("BLS Verify for {:?} is {:?}", tag, v);
                 res &= v;
             }
             if res {

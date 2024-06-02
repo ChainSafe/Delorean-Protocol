@@ -24,7 +24,7 @@ use fendermint_vm_interpreter::bytes::{
     BytesMessageApplyRes, BytesMessageCheckRes, BytesMessageQuery, BytesMessageQueryRes,
 };
 use fendermint_vm_interpreter::chain::{
-    cetf_blockheight_tag_msg_to_chainmessage, cetf_tag_msg_to_chainmessage, ChainEnv,
+    cetf_tag_msg_to_chainmessage, ChainEnv,
     ChainMessageApplyRet, IllegalMessage,
 };
 use fendermint_vm_interpreter::fvm::extend::{SignatureKind, SignedTags, TagKind, Tags};
@@ -856,12 +856,13 @@ where
                         agg_cetf,
                     ))?);
                 };
-                if let Some(agg_height) = agg_height_sig {
-                    cetf_tx.push(cetf_blockheight_tag_msg_to_chainmessage(&(
-                        request.height.value(),
-                        agg_height,
-                    ))?);
-                };
+                // if let Some(agg_height) = agg_height_sig {
+                    // skip adding block to sign to simplify demo
+                    // cetf_tx.push(cetf_blockheight_tag_msg_to_chainmessage(&(
+                    //     request.height.value(),
+                    //     agg_height,
+                    // ))?);
+                // };
             }
             None => {
                 tracing::info!("Prepare proposal with no local last commit");

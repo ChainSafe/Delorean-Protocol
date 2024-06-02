@@ -147,17 +147,17 @@ impl Actor {
         Ok(())
     }
 
-    pub fn add_signed_blockheight_tag(
-        rt: &impl Runtime,
-        params: AddSignedBlockHeightTagParams,
-    ) -> Result<(), ActorError> {
-        rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
-        rt.transaction(|st: &mut State, rt| {
-            st.add_signed_blockheight_tag_at_height(rt, &params.height, &params.signature)?;
-            Ok(())
-        })?;
-        Ok(())
-    }
+    // pub fn add_signed_blockheight_tag(
+    //     rt: &impl Runtime,
+    //     params: AddSignedBlockHeightTagParams,
+    // ) -> Result<(), ActorError> {
+    //     rt.validate_immediate_caller_is(std::iter::once(&SYSTEM_ACTOR_ADDR))?;
+    //     rt.transaction(|st: &mut State, rt| {
+    //         st.add_signed_blockheight_tag_at_height(rt, &params.height, &params.signature)?;
+    //         Ok(())
+    //     })?;
+    //     Ok(())
+    // }
 }
 
 impl ActorCode for Actor {
@@ -176,6 +176,6 @@ impl ActorCode for Actor {
         AddValidator => add_validator,
         Disable => disable,
         AddSignedTag => add_signed_tag,
-        AddSignedBlockHeightTag => add_signed_blockheight_tag,
+        // AddSignedBlockHeightTag => add_signed_blockheight_tag,
     }
 }

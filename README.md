@@ -137,6 +137,8 @@ On MacOS:
 - Install docker: https://docs.docker.com/desktop/install/mac-install/
 - Install foundry: https://book.getfoundry.sh/getting-started/installation
 
+Run `make` in the root of the repo before proceeding
+
 ### Steps
 
 The demo runs against a standalone network (not a subnet) with 4 validators.
@@ -178,7 +180,7 @@ export DELORIAN_SECRET_KEY="./test-data/keys/volvo.sk"
 The encrypt command takes a stream on std-in and encrypts it. Lets pipe a message to have it encrypted
 
 ```shell
-echo 'Where we are going, we dont need centralized key registries!' | delorean-cli encrypt $CONTRACT_ADDRESS > encrypted.txt 
+echo 'Where we are going, we dont need centralized key registries!' | delorean-cli encrypt $CONTRACT_ADDRESS -o encrypted.txt 
 ```
 
 Take a look at the encrypted output by running `cat encrypted.txt`. It uses the [age](https://github.com/FiloSottile/age) encryption specification to encrypt large plaintexts.

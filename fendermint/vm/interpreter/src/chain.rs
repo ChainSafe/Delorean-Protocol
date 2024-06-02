@@ -265,18 +265,6 @@ where
 
                     Ok(((env, state), ChainMessageApplyRet::Signed(ret)))
                 }
-                CetfMessage::BlockHeightTag(height, sig) => {
-                    let msg = cetf_blockheight_tag_msg_to_fvm(&(height, sig))
-                        .context("failed to syntesize FVM message")?;
-
-                    let (state, ret) = self
-                        .inner
-                        .deliver(state, VerifiableMessage::NotVerify(msg))
-                        .await
-                        .context("failed to check cetf block height tag")?;
-
-                    Ok(((env, state), ChainMessageApplyRet::Signed(ret)))
-                }
             },
             ChainMessage::Signed(msg) => {
                 let (state, ret) = self
@@ -512,18 +500,6 @@ where
 
                     Ok((state, Ok(ret)))
                 }
-                CetfMessage::BlockHeightTag(height, sig) => {
-                    let msg = cetf_blockheight_tag_msg_to_fvm(&(height, sig))
-                        .context("failed to syntesize FVM message")?;
-
-                    let (state, ret) = self
-                        .inner
-                        .check(state, VerifiableMessage::NotVerify(msg), is_recheck)
-                        .await
-                        .context("failed to check cetf block height tag")?;
-
-                    Ok((state, Ok(ret)))
-                }
             },
         }
     }
@@ -654,33 +630,4 @@ fn cetf_tag_msg_to_fvm(tag_msg: &(u64, BlsSignature)) -> anyhow::Result<FvmMessa
     };
 
     Ok(msg)
-}
-
-fn cetf_blockheight_tag_msg_to_fvm(tag_msg: &(u64, BlsSignature)) -> anyhow::Result<FvmMessage> {
-    let params = RawBytes::serialize(&fendermint_actor_cetf::AddSignedBlockHeightTagParams {
-        height: tag_msg.0,
-        signature: tag_msg.1.clone(),
-    })?;
-    let msg = FvmMessage {
-        from: SYSTEM_ACTOR_ADDR,
-        to: CETFSYSCALL_ACTOR_ADDR,
-        sequence: tag_msg.0,
-        gas_limit: BLOCK_GAS_LIMIT * 10000,
-        method_num: fendermint_actor_cetf::Method::AddSignedBlockHeightTag as u64,
-        params,
-        value: Default::default(),
-        version: Default::default(),
-        gas_fee_cap: Default::default(),
-        gas_premium: Default::default(),
-    };
-
-    Ok(msg)
-}
-pub fn cetf_blockheight_tag_msg_to_chainmessage(
-    tag_msg: &(u64, bls_signatures::Signature),
-) -> anyhow::Result<ChainMessage> {
-    let tag = tag_msg.0;
-    let sig = tag_msg.1.as_bytes();
-    let sig = BlsSignature(sig.try_into().unwrap());
-    Ok(ChainMessage::Cetf(CetfMessage::BlockHeightTag(tag, sig)))
 }

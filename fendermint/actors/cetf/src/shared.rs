@@ -160,5 +160,5 @@ pub enum Method {
     Enable = frc42_dispatch::method_hash!("Enable"),
     Disable = frc42_dispatch::method_hash!("Disable"),
     AddSignedTag = frc42_dispatch::method_hash!("AddSignedTag"),
-    AddSignedBlockHeightTag = frc42_dispatch::method_hash!("AddSignedBlockHeightTag"),
+    // AddSignedBlockHeightTag = frc42_dispatch::method_hash!("AddSignedBlockHeightTag"),
 }

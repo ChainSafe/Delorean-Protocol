@@ -126,9 +126,13 @@ enum Commands {
     RegisteredKeys,
     Encrypt {
         contract_address: String,
+        #[arg(long, short)]
+        output: PathBuf,
     },
     Decrypt {
         contract_address: String,
+        #[arg(long, short)]
+        output: Option<PathBuf>,
     },
     TestIfHeightsAreSignedProperly,
 }
@@ -313,16 +317,19 @@ async fn main() -> anyhow::Result<()> {
             let contract = delorean_contract(&address);
             let call = contract.release_key();
 
+            tracing::info!("Calling releaeKeys on contract at address {}", address);
             let result: bool = invoke_or_call_contract(&mut client, &address, call, true).await?;
 
             tracing::info!(result = ?result, "contract call result");
         }
-        Commands::Encrypt { contract_address } => {
+        Commands::Encrypt { contract_address, output } => {
             let signing_tag = retrieve_signing_tag(&mut client, &contract_address).await?;
-            // tracing::info!(signing_tag = ?signing_tag, "contract call returned");
+            tracing::info!("Retrieved signing tag 0x{} from contract", hex::encode(&signing_tag));
 
             let agg_pubkey = get_agg_pubkey(&client, &store).await?;
-            // tracing::info!(agg_pubkey = ?hex::encode(&agg_pubkey.as_bytes()), "Computed aggregate BLS pubkey");
+            tracing::info!("Computed aggregate BLS pubkey 0x{}", hex::encode(&agg_pubkey.as_bytes()));
+
+            tracing::info!("Encrypting...");
 
             // encrypt whatever is on std-in into our armor writer
             let mut armored = tlock_age::armor::ArmoredWriter::wrap_output(vec![]).unwrap();
@@ -334,14 +341,19 @@ async fn main() -> anyhow::Result<()> {
                 signing_tag,
             )?;
             let encrypted = armored.finish().unwrap();
-            std::io::stdout().write(&encrypted).unwrap();
+
+            // write the encrypted data to the output file
+            std::fs::write(&output, &encrypted).expect("failed to write output file");
+            tracing::info!("Done!");
+
         }
-        Commands::Decrypt { contract_address } => {
+        Commands::Decrypt { contract_address, output } => {
             let signing_tag = retrieve_signing_tag(&mut client, &contract_address).await?;
-            tracing::info!(signing_tag = ?signing_tag, "contract call returned");
+            tracing::info!("Retrieved signing tag 0x{} from contract", hex::encode(&signing_tag));
+            tracing::info!("Attempting to retrieve signature for tag");
 
             let sig_bytes = get_signature_for_tag(&client, &store, signing_tag).await?;
-            tracing::info!(sig_bytes = ?sig_bytes, "Got signature for tag. len: {}", sig_bytes.0.len());
+            tracing::info!("Got key/signature 0x{}", hex::encode(sig_bytes.0));
 
             let mut decrypted = vec![];
             tlock_age::decrypt(
@@ -350,7 +362,11 @@ async fn main() -> anyhow::Result<()> {
                 &[0x0; 32],
                 &sig_bytes.0,
             )?;
-            std::io::stdout().write(&decrypted).unwrap();
+            if let Some(output) = output {
+                std::fs::write(&output, &decrypted).expect("failed to write output file");
+            } else {
+                std::io::stdout().write_all(&decrypted).expect("failed to write to stdout");
+            }
         }
         Commands::TestIfHeightsAreSignedProperly => {
             let QueryResponse { height, value } = client
