@@ -8,24 +8,6 @@ An IPC subnet for programmable encryption to-the-future.
 
 Our entry for the EthGlobal HackFS 2024 Hackathon
 
-## Judging Considerations
-
-Delorean builds upon the IPC subnet boilerplace provided by Protocol Labs
-
-The work conducted during the hackathon can be viewed in [this diff](https://github.com/BadBoiLabs/Delorean-Protocol/compare/72a51df1dc5ee06474772406171ebcabdc205b69..main)
-
-This includes:
-
-- Updating the runtime to support ABCI v0.38
-- [Developing a custom FVM actor (Delorean actor)](https://github.com/BadBoiLabs/Delorean-Protocol/blob/main/fendermint/actors/cetf/src/actor.rs)
-- [Solidity contracts to interface with actor](https://github.com/BadBoiLabs/Delorean-Protocol/blob/main/contracts/src/delorean/DeloreanAPI.sol)
-- [Modifications to runtime to implement the Delorean protocol](https://github.com/BadBoiLabs/Delorean-Protocol/blob/main/fendermint/app/src/app.rs)
-    - Extend CometBFT votes with signatures
-    - Ensure votes have valid signatures
-    - Have block producer commit aggregate signature to actor state
-- [Delorean CLI](https://github.com/BadBoiLabs/Delorean-Protocol/tree/main/fendermint/testing/delorean-cli)
-    - encrypt/decrypt
-
 ## Overview
 
 Practical encryption to the future can be done using a blockchain in combination with witness encryption. A plaintext can is encrypted such that the decryption key is produced when a threshold of validators sign a chosen message. This is used by protocols such as tlock[^tlock] and McFLY[^mcfly].
@@ -90,6 +72,24 @@ and this is what the Delorean protocol produces after the contract triggers the 
 
 > [!NOTE]  
 > We are using the non-threshold variant of the algorithm for this prototype so all validators must sign. A threshold version could be implemented by having the validators perform a key generation ceremony or by using a modified protocol such as the one used in [McFLY -  Döttling et al (2023)](mcfly)
+
+## Judging Considerations
+
+Delorean builds upon the IPC subnet boilerplace provided by Protocol Labs
+
+The work conducted during the hackathon can be viewed in [this diff](https://github.com/BadBoiLabs/Delorean-Protocol/compare/72a51df1dc5ee06474772406171ebcabdc205b69..main)
+
+This includes:
+
+- Updating the runtime to support ABCI v0.38
+- [Developing a custom FVM actor (Delorean actor)](https://github.com/BadBoiLabs/Delorean-Protocol/blob/main/fendermint/actors/cetf/src/actor.rs)
+- [Solidity contracts to interface with actor](https://github.com/BadBoiLabs/Delorean-Protocol/blob/main/contracts/src/delorean/DeloreanAPI.sol)
+- [Modifications to runtime to implement the Delorean protocol](https://github.com/BadBoiLabs/Delorean-Protocol/blob/main/fendermint/app/src/app.rs)
+    - Extend CometBFT votes with signatures
+    - Ensure votes have valid signatures
+    - Have block producer commit aggregate signature to actor state
+- [Delorean CLI](https://github.com/BadBoiLabs/Delorean-Protocol/tree/main/fendermint/testing/delorean-cli)
+    - encrypt/decrypt
 
 ## Usage Flow
 
